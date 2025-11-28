@@ -1,0 +1,510 @@
+﻿Міністерство освіти та науки України
+
+
+Харківський національний університет радіоелектроніки
+
+
+Кафедра ПІ
+
+
+ЗВІТ
+з практичної роботи № 2
+з дисципліни “Аналіз та рефакторинг коду
+на тему:
+“Extract Method Move Method та Rename Method. Рефакторинг багатошарової архітектури в C#”
+
+
+
+
+
+
+
+
+Виконала:                                                        
+ст. гр.  ПЗПІ-23-3                                                                       Коваленко В. О.
+
+
+Перевірив:
+ст. викладач кафедри ПІ                                                        Сокорчук Ігор  Петрович
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+________________
+1 ІСТОРІЯ ЗМІН
+Таблиця 1.1 – Історія змін у звіті
+№
+	Дата
+	Версія звіту
+	Опис змін та виправлень
+	1
+	24.11.2025
+	0.1
+	Створено розділ “Завдання”
+	2
+	26.11.2025
+	0.2
+	Додано розділ “Опис виконаної роботи”
+	3
+	27.11.2025
+	0.3
+	Додано додатки А, Б, В
+	4
+	28.11.2025
+	1.0
+	Сформовано фінальний текст звіту згідно з ДСТУ 3008:2015
+	________________
+2 ЗАВДАННЯ
+Відповідно до методичних вказівок до практичної роботи необхідно виконати наступні завдання:
+* Згідно із завданням я обрала три методи рефакторингу із книги Мартіна Фаулера «Refactoring. Improving the Design of Existing Code», а саме Extract Method Move Method та Rename Method;
+* Навела приклади свого особистого коду з курсового проєкту, який потребував покращення, та продемонструвала застосування обраних методів:
+* Кожен метод рефакторингу супроводжувався: описом проблеми, яку вирішує даний метод, кодом до і після застосування методу рефакторингу., поясненням переваг використаного методу.
+________________
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+3.1 Вступ
+У процесі розроблення будь-якої системи дуже важливу роль відіграє рефакторинг коду. Хоча на перший погляд може здатися, що перероблювати чи систематично покращувати код може бути зайвим, на практиці саме це дозволяє підтримувати проєкт у зрозумілому та працюючому стані. Рефакторинг дає змогу своєчасно усувати дублювання, надмірні залежності, заплутану логіку та інші технічні недоліки, які накопичуються в процесі розробки. У результаті система стає більш стабільною, масштабованою та простою для розширення
+Завдяки застосуванню перевірених методів удосконалення структури програмних рішень можна досягти оптимізації логіки, зменшення кількості зайвих операцій та підвищення загальної якості коду.
+Цію практичної роботи я приділю застосуванню конкретних методів рефакторингу коду: Extract Method, Move Method та Rename Method. Кожен з них вирішує певні проблеми, що виникають у багатошарових архітектурах і не тільки
+Метод Extract Method використовується для виділення логічних блоків з великих методів у окремі, невеликі підпроцедури чи підметоди, що полегшує розуміння та повторне використання коду.
+         Move Method дозволяє перенести метод у той клас, де його логіка більш доречна з точки зору предметної області, зменшуючи зайву залежність між блоками
+         Rename Method спрямований на підвищення зрозумілості коду через коректні та узгоджені імена методів і змінних
+3.2  Extract Method
+        3.2.1 Проблеми, з якими стикаються розробники при ігноруванні рефакторингу коду, використовуючи Extract Method
+При ігноруванні принципу розбиття методів на менші логічні блоки розробники часто стикаються з дуже великими методами, які важко читати і розуміти. Такий код ускладнює пошук помилок, тестування та повторне використання логіки. Крім того, накопичення логіки в одному методі призводить до підвищеної зв’язаності коду та збільшення ризику, що зміни в одній частині методу спричинять непередбачувані помилки в іншій.
+3.2.2 Рішення, які пропонує Extract Method
+Метод Extract Method дозволяє виділити окремі логічні частини великого методу в самостійні блоки, наприклад підметоди. Це означає, що складну операцію можна розбити на низку маленьких методів із чіткою відповідальністю. Кожен новий метод отримує конкретну задачу, що робить його більш зрозумілим і незалежним від решти коду. В результаті стає простіше проводити модульне тестування, повторно використовувати логіку та підтримувати код. Під час презентації я розглянула цей метод на власному прикладі курсового проєкту та впевнелась у тому, що він дуже сильно впливає як і на загальний вигляд коду, так і на читабельність та підтримуваність
+3.2.3 Переваги коду після рефакторингу
+Після застосування Extract Method код став набагато компактнішим та легшим для сприйняття. Зменшилось дублювання логіки, з’явилась чітка структура та послідовність виконання операцій. Тепер легше зрозуміти, що робить кожен метод, а також простіше вносити зміни чи додавати нові функції. 
+3.3  Move Method
+        3.3.1 Проблеми, з якими стикаються розробники при ігноруванні рефакторингу коду, використовуючи Move Method
+Якщо логіку залишати в неправильних класах, методи починають працювати з даними інших блоків частіше, ніж із власними, або клас накопичує відповідальності, які йому не властиві. Це призводить до підвищеної зв’язаності між класами та появи прихованих залежностей. Такий код через деякий час просто неможливо буде підтримувати, тестувати та розширювати, адже зміни в одному класі можуть вплинути на роботу інших класів.
+3.3.2 Рішення, які пропонує Move Method
+Метод Move Method дозволяє перенести метод у клас, який має відповідати за конкретну логіку за предметною моделлю.Якщо простими словами, то це означає, що кожен метод повинен керувати лише даними власного класу або тісно пов’язаної структури, а не сторонніх структур. У результаті метод працює з тими даними, які належать класу або безпосередньо з ним пов’язані, зменшується кількість звернень до сторонніх класів, і код чітко відображає відповідальність кожного об’єкта.
+3.3.3 Переваги коду після рефакторингу
+Після застосування Move Method методи опиняються в тих класах, де вони мають бути. Це робить взаємодію між частинами системи зрозумілішою, спрощує тестування і підтримку коду, а також зменшує ризик помилок через неправильне розташування логіки.
+3.4  Rename Method
+        3.4.1 Проблеми, з якими стикаються розробники при ігноруванні рефакторингу коду, використовуючи Rename Method
+Якщо імена методів, змінних або класів не відображають їх реальне призначення, код стає дуже важким для розуміння, особливо, якщо його бачиш вперше. Тобто потрібно витратити додатковий час на розшифровку логіки та імен, і при цьому це не загантує виникнення ризику помилок при використанні методів у нових місцях іншими розробниками 
+3.4.2 Рішення, які пропонує Rename Method
+Rename Method дозволяє змінювати імена методів, змінних та класів так, щоб вони максимально точно відображали свою функціональність. Це не впливає на роботу самої програми і не змінює логіку коду, але підвищує його зрозумілість. Завдяки точним іменам можна швидше  зрозуміти код та униктути зайвих коментарів. Також полегшується написання тестів і подальше масштабування коду, оскільки нові підтримувачі системи не витрачають час на розшифровку призначення елементів коду. В результаті Rename Method підвищує якість та продукту, роблячи його легшим для підтримки та розвитку.
+3.4.3 Переваги коду після рефакторингу
+Після застосування Rename Method код стає легким для читання та підтримки. Назви методів і змінних одразу пояснюють їхню функцію, що спрощує написання нових фрагментів коду, тестування та внесення змін без помилок. Це також підвищує загальне розуміння системи і зменшує час на розбір логіки під час командної роботи.
+________________
+
+
+ВИСНОВКИ
+Під час другої практичної роботи я познайомилась з трьома методами рефакторингу коду, що допомагли мені значно покращити мій минулорічний проєкт. Extract Method допоміг мені прибрати складність у великих методів, розбивши його логіку на менші фрагменти коду, які відповідають тільки за один логічний блок. Move Method розмістив методи в тих класах, де вони логічно належать, завдяки чому зменшилась кількість непотрібних залежностей і дублювання даних. Rename Method уточнив назв, тим самим зробив код більш зрозумілим та читабельним. Отже у результаті я отримала нові навички у рефакторингу коду та покращила якість мого коду у проєкті.
+
+
+________________
+
+
+ВИКОРИСТАНІ ДЖЕРЕЛА
+1. Фаулер М. Рефакторинг. Поліпшення існуючого коду. – К.: Вид-во «Вільямс»(дата звернення: 25.11.2025).
+2. Microsoft. ASP.NET Core Documentation – Режим доступу: https://learn.microsoft.com/aspnet/core (дата звернення: 28.11.2025).
+3. Fowler M. Refactoring Catalog. – Режим доступу: https://refactoring.com/catalog (дата звернення: 27.11.2025).
+________________
+
+
+ДОДАТОК А
+Відеозапис
+Відеозапис доповіді: https://youtu.be/akGFARr4Zhw
+00:00 - Вступ. Рефакторинг багатошарової архітектури в C# --  Extract Method Move Method та Rename Method
+00:28 - Важливість рефакторингу у проєктах
+01:07 - Курсовий проєкт та проблеми під час написання коду без рефакторингу
+01:43 - Три ключові методи для підвищення якості коду
+02:22 - Extract Method, розглядаємо детально
+03:00 - Extract Method, розглядаємо фрагмент коду курсового проєкту до рефакторингу
+04:42 - Extract Method, розглядаємо фрагмент коду курсового проєкту після рефакторингу
+05:47 - Підводимо підсумки, щодо користі використання Extract Method під час рефакторингу
+06:07 - Move Method, розглядаємо детально
+06:32 - Move Method, розглядаємо фрагмент коду курсового проєкту до рефакторингу
+08:05 - Move Method, розглядаємо фрагмент коду курсового проєкту після рефакторингу
+09:00 - Підводимо підсумки, щодо користі використання Move Method під час рефакторингу
+09:19 - Rename Method, розглядаємо детально
+09:39 - Rename Method, розглядаємо фрагмент коду курсового проєкту до рефакторингу
+10:19 - Rename Method, розглядаємо фрагмент коду курсового проєкту після рефакторингу
+10:55 - Підводимо підсумки, щодо користі використання Rename Method під час рефакторингу
+11:10 - Підводимо підсумки щодо використання Extract Method, Move Method та Rename Method при рефакторингу коду
+11:34 - Дякую за увагу
+________________
+
+
+
+
+ДОДАТОК Б
+Графічні матеріали
+  
+
+Рисунок Б.1 – Титульний слайд презентації
+  
+
+Рисунок Б.2 – Важливість рефакторингу у проєктах
+  
+
+Рисунок Б.3 – Проблематика курсового проєкту
+  
+
+Рисунок Б.4 – Три ключові методи для підвищення якості коду
+  
+
+Рисунок Б.5 – Детально про Extract Method
+  
+
+Рисунок Б.6 – Підсумки, щодо користі використання Extract Method під час рефакторингу
+  
+
+Рисунок Б.7 – Детально про Move Method
+  
+
+Рисунок Б.8 – Підсумки, щодо користі використання Move Method під час рефакторингу
+  
+
+Рисунок Б.9 – Детально про Rename Method
+  
+
+Рисунок Б.10 – Підсумки, щодо користі використання Rename Method під час рефакторингу
+  
+
+Рисунок Б.11 – Підсумки рефакторингу коду
+  
+
+Рисунок Б.12 – Дякую за увагу!
+________________
+
+
+ДОДАТОК В
+Програмний код
+В.1 Приклад фрагменту коду з курсового проєкту до рефакторингу коду із використанням методу Extract Method
+
+ 1.     public IActionResult Complete_The_Deal(int? id)
+ 2.     {
+ 3.         if (id == null)
+ 4.         {
+ 5.             return NotFound();
+ 6.         }
+ 7. 
+ 8.         var deal = _context.PawnTransactions
+ 9.             .Include(p => p.Payments)
+10.             .Include(pt => pt.Valuation)
+11.             .ThenInclude(v => v.Valuable)
+12.             .FirstOrDefault(pt => pt.PawnTransactionId == id);
+13.
+14.         if (deal == null)
+15.         {
+16.             return NotFound();
+17.         }
+18.
+19.         var totalValue = deal.Valuation.EstimatedValue +
+20.             (deal.Valuation.EstimatedValue * (deal.InterestRate / 100));
+21.
+22.         var totalPayments = deal.Payments.Sum(p => p.AmountPaid);
+23.
+24.         if (totalValue != totalPayments)
+25.         {
+26.             TempData["error"] = "Угода не може бути завершена, поки не сплачена вся сума.";
+27.             return RedirectToAction("Index");
+28.         }
+29.
+30.         var completedStatus = _context.PawnStatuses
+31.             .FirstOrDefault(s => s.PawnStatusName == "Завершено");
+32.
+33.         if (completedStatus == null)
+34.         {
+35.             return StatusCode(500, "Статус 'Завершено' отсутствует в базе данных.");
+36.         }
+37.
+38.         deal.CompletionDate = DateTime.Now;
+39.         deal.DueTime = (DateTime)deal.CompletionDate;
+40.         deal.PawnStatusId = completedStatus.PawnStatusId;
+41.
+42.         var valuable = deal.Valuation?.Valuable;
+43.         if (valuable != null)
+44.         {
+45.             var releasedStatus = _context.OwnershipStatuses
+46.                 .FirstOrDefault(s => s.OwnershipStatusName == "Повернуто власнику");
+47.
+48.             if (releasedStatus != null)
+49.             {
+50.                 valuable.OwnershipStatusId = releasedStatus.OwnershipStatusId;
+51.             }
+52.         }
+53.
+54.         _context.PawnTransactions.Update(deal);
+55.         _context.SaveChanges();
+56.
+57.         TempData["success"] = "Угода успішно завершена!";
+58.         return RedirectToAction("Index");
+59.     }
+
+
+В.2 Приклад фрагменту коду з курсового проєкту після рефакторингу коду із використанням методу Extract Method
+
+
+ 1.     public IActionResult Complete_The_Deal(int? id)
+ 2.     {
+ 3.         var deal = GetDealById(id);
+ 4.         if (deal == null)
+ 5.             return NotFound();
+ 6.
+ 7.         if (!IsDealFullyPaid(deal))
+ 8.         {
+ 9.             TempData["error"] = "Угода не може бути завершена, поки не сплачена вся сума.";
+10.             return RedirectToAction("Index");
+11.         }
+12.
+13.         CompleteDealStatus(deal);
+14.         UpdateValuableOwnership(deal);
+15.
+16.         _context.PawnTransactions.Update(deal);
+17.         _context.SaveChanges();
+18.
+19.         TempData["success"] = "Угода успішно завершена!";
+20.         return RedirectToAction("Index");
+21.     }
+22.
+23.     private PawnTransaction GetDealById(int? id)
+24.     {
+25.         if (id == null) return null;
+26.
+27.         return _context.PawnTransactions
+28.             .Include(p => p.Payments)
+29.             .Include(pt => pt.Valuation)
+30.             .ThenInclude(v => v.Valuable)
+31.             .FirstOrDefault(pt => pt.PawnTransactionId == id);
+32.     }
+33.
+34.     private bool IsDealFullyPaid(PawnTransaction deal)
+35.     {
+36.         var totalValue = deal.Valuation.EstimatedValue +
+37.                          (deal.Valuation.EstimatedValue * (deal.InterestRate / 100));
+38.         var totalPayments = deal.Payments.Sum(p => p.AmountPaid);
+39.         return totalValue == totalPayments;
+40.     }
+41.
+42.     private void CompleteDealStatus(PawnTransaction deal)
+43.     {
+44.         var completedStatus = _context.PawnStatuses
+45.             .FirstOrDefault(s => s.PawnStatusName == "Завершено");
+46.
+47.         if (completedStatus == null)
+48.             throw new Exception("Статус 'Завершено' отсутствует в базе данных.");
+49.
+50.         deal.CompletionDate = DateTime.Now;
+51.         deal.DueTime = (DateTime)deal.CompletionDate;
+52.         deal.PawnStatusId = completedStatus.PawnStatusId;
+53.     }
+54.
+55.     private void UpdateValuableOwnership(PawnTransaction deal)
+56.     {
+57.         var valuable = deal.Valuation?.Valuable;
+58.         if (valuable == null) return;
+59.
+60.         var releasedStatus = _context.OwnershipStatuses
+61.             .FirstOrDefault(s => s.OwnershipStatusName == "Повернуто власнику");
+62.
+63.         if (releasedStatus != null)
+64.             valuable.OwnershipStatusId = releasedStatus.OwnershipStatusId;
+65.     }
+
+
+В.3 Приклад фрагменту коду з курсового проєкту до рефакторингу коду із використанням методу Move Method
+
+
+ 1.     [HttpPost]
+ 2.     public IActionResult Create(PawnTransaction pawnTransaction)
+ 3.     {
+ 4.         if (pawnTransaction.TransactionDate > pawnTransaction.DueTime)
+ 5.         {
+ 6.             ModelState.AddModelError("DueTime", "Дата початку не може бути менша за дату кінця");
+ 7.         }
+ 8.
+ 9.         var temp = pawnTransaction.CustomerId;
+10.
+11.         var valuation = _context.Valuations
+12.                                 .Include(v => v.Valuable)
+13.                                 .ThenInclude(o => o.OwnershipStatus)
+14.                                 .FirstOrDefault(val => val.ValuationId == pawnTransaction.ValuationId);
+15.
+16.         if (valuation == null)
+17.         {
+18.             return NotFound();
+19.         }
+20.
+21.         valuation.Valuable.OwnershipStatusId = _context.OwnershipStatuses
+22.                                                      .FirstOrDefault(v => v.OwnershipStatusName == "В заставі")
+23.                                                      .OwnershipStatusId;
+24.
+25.         pawnTransaction.PawnStatusId = _context.PawnStatuses
+26.                                               .FirstOrDefault(p => p.PawnStatusName == "Створено")
+27.                                               .PawnStatusId;
+28.
+29.         if (ModelState.IsValid)
+30.         {
+31.             _context.PawnTransactions.Add(pawnTransaction);
+32.             _context.SaveChanges();
+33.
+34.             TempData["success"] = $"Угода була успішно додана до системи";
+35.             return RedirectToAction("Index");
+36.         }
+37.
+38.         TempData["CustomerId"] = temp;
+39.         PopulateViewBags();
+40.         return View(pawnTransaction);
+41.     }
+
+
+В.4 Приклад фрагменту коду з курсового проєкту після рефакторингу коду із використанням методу Move Method
+
+
+ 1. [HttpPost]
+ 2. public IActionResult Create(PawnTransaction pawnTransaction)
+ 3. {
+ 4.     if (!_pawnTransactionService.ValidateTransactionDate(pawnTransaction))
+ 5.     {
+ 6.         ModelState.AddModelError("DueTime", "Дата початку не може бути менша за дату кінця");
+ 7.     }
+ 8.
+ 9.     if (ModelState.IsValid)
+10.     {
+11.         _pawnTransactionService.CreateTransaction(pawnTransaction);
+12.
+13.         TempData["success"] = $"Угода була успішно додана до системи";
+14.         return RedirectToAction("Index");
+15.     }
+16.
+17.     TempData["CustomerId"] = pawnTransaction.CustomerId;
+18.     PopulateViewBags();
+19.     return View(pawnTransaction);
+20. }
+21.
+22. public class PawnTransactionService
+23. {
+24.     private readonly IPawnTransactionRepository _transactionRepo;
+25.     private readonly IValuationRepository _valuationRepo;
+26.     private readonly IStatusRepository _statusRepo;
+27.
+28.     public PawnTransactionService(IPawnTransactionRepository transactionRepo,
+29.                                   IValuationRepository valuationRepo,
+30.                                   IStatusRepository statusRepo)
+31.     {
+32.         _transactionRepo = transactionRepo;
+33.         _valuationRepo = valuationRepo;
+34.         _statusRepo = statusRepo;
+35.     }
+36.
+37.     public bool ValidateTransactionDate(PawnTransaction transaction)
+38.     {
+39.         return transaction.TransactionDate <= transaction.DueTime;
+40.     }
+41.
+42.     public void CreateTransaction(PawnTransaction transaction)
+43.     {
+44.         UpdateValuationStatus(transaction);
+45.         AssignTransactionStatus(transaction);
+46.
+47.         _transactionRepo.Add(transaction);
+48.         _transactionRepo.Save();
+49.     }
+50.
+51.     private void UpdateValuationStatus(PawnTransaction transaction)
+52.     {
+53.         var valuation = _valuationRepo.GetById(transaction.ValuationId);
+54.
+55.         valuation.Valuable.OwnershipStatusId =
+56.             _statusRepo.GetOwnershipStatus("В заставі").Id;
+57.     }
+58.
+59.     private void AssignTransactionStatus(PawnTransaction transaction)
+60.     {
+61.         transaction.PawnStatusId =
+62.             _statusRepo.GetPawnStatus("Створено").Id;
+63.     }
+64. }
+
+
+В.5 Приклад фрагменту коду з курсового проєкту до рефакторингу коду із використанням методу Rename Method
+
+
+ 1. public IActionResult Index(string FN, string LN,
+ 2.                            DateTime? sD, DateTime? eD)
+ 3. {
+ 4.     var c = _context.Customer.AsQueryable();
+ 5.
+ 6.     if (!string.IsNullOrWhiteSpace(FN) && !string.IsNullOrWhiteSpace(LN))
+ 7.     {
+ 8.         c = c.Where(c => c.FN.Contains(FN) && c.LN.Contains(LN));
+ 9.     }
+10.     else if (!string.IsNullOrWhiteSpace(FN))
+11.     {
+12.         c = c.Where(c => c.FN.Contains(FN));
+13.     }
+14.     else if (!string.IsNullOrWhiteSpace(LN))
+15.     {
+16.         c = c.Where(c => c.LN.Contains(LN));
+17.     }
+18.
+19.     if (sD.HasValue)
+20.     {
+21.         c = c.Where(p => p.RegistrationDate >= sD.Value);
+22.     }
+23.
+24.     if (eD.HasValue)
+25.     {
+26.         c = c.Where(p => p.RegistrationDate <= eD.Value);
+27.     }
+28.
+29.     ViewData["FirstName"] = FN;
+30.     ViewData["LastName"] = LN;
+31.     ViewData["startDate"] = sD?.ToString("yyyy-MM-dd");
+32.     ViewData["endDate"] = eD?.ToString("yyyy-MM-dd");
+33.
+34.     return View(c.ToList());
+35. }
+
+
+В.6 Приклад фрагменту коду з курсового проєкту після рефакторингу коду із використанням методу Rename Method
+
+
+ 1   public IActionResult GetFilteredCustomers(string FirstName, string LastName,
+ 2                                DateTime? startDate, DateTime? endDate)
+ 3   {
+ 4       
+ 5       var customers = _context.Customer.AsQueryable();
+ 6       if (!string.IsNullOrWhiteSpace(FirstName) && !string.IsNullOrWhiteSpace(LastName))
+ 7       {
+ 8           customers = customers.Where(c => c.FirstName.Contains(FirstName) && c.LastName.Contains(LastName));
+ 9       }
+10       else if (!string.IsNullOrWhiteSpace(FirstName))
+11       {
+12           customers = customers.Where(c => c.FirstName.Contains(FirstName));
+13       }
+14       else if (!string.IsNullOrWhiteSpace(LastName))
+15       {
+16           customers = customers.Where(c => c.LastName.Contains(LastName));
+17       }
+18       if (startDate.HasValue)
+19       {
+20           customers = customers.Where(p => p.RegistrationDate >= startDate.Value);
+21       }
+22       if (endDate.HasValue)
+23       {
+24           customers = customers.Where(p => p.RegistrationDate <= endDate.Value);
+25       }
+26
+27       ViewData["FirstName"] = FirstName;
+28       ViewData["LastName"] = LastName;
+29       ViewData["startDate"] = startDate?.ToString("yyyy-MM-dd"); 
+30       ViewData["endDate"] = endDate?.ToString("yyyy-MM-dd"); 
+31
+32       return View(customers.ToList());
+33   }
