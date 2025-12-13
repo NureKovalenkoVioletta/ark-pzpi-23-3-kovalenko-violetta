@@ -1,0 +1,13 @@
+using FitnessProject.Data;
+using FitnessProject.DAL.Interfaces;
+using FitnessProject.Entities;
+
+namespace FitnessProject.DAL.Repositories;
+
+public class RecommendationRepository : Repository<Recommendation>, IRecommendationRepository
+{
+    public RecommendationRepository(ApplicationDbContext context) : base(context)
+    {
+    }
+}
+
