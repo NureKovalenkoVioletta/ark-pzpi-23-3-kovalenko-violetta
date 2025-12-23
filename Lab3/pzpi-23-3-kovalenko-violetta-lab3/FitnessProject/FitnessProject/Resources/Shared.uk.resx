@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Recommendations.DietCorrection.Reason.HighActivity" xml:space="preserve">
+    <value>Висока активність</value>
+  </data>
+  <data name="Recommendations.DietCorrection.Reason.LowActivity" xml:space="preserve">
+    <value>Низька активність</value>
+  </data>
+  <data name="Recommendations.DietCorrection.Reason.SleepDeprived" xml:space="preserve">
+    <value>Недосип</value>
+  </data>
+  <data name="Recommendations.DietCorrection.Reason.HeartRateAnomaly" xml:space="preserve">
+    <value>Аномальний пульс</value>
+  </data>
+  <data name="Recommendations.DietCorrection.Reason.Default" xml:space="preserve">
+    <value>Корекція раціону</value>
+  </data>
+  <data name="Recommendations.DietCorrection.Suggest" xml:space="preserve">
+    <value>Рекомендується скоригувати: калорії {0} ккал, білки {1} г, жири {2} г, вуглеводи {3} г</value>
+  </data>
+  <data name="Errors.IdMismatch" xml:space="preserve">
+    <value>Невідповідність ID</value>
+  </data>
+  <data name="Errors.NotFound" xml:space="preserve">
+    <value>Не знайдено</value>
+  </data>
+  <data name="Errors.BadRequest" xml:space="preserve">
+    <value>Некоректний запит</value>
+  </data>
+  <data name="Errors.PayloadEmpty" xml:space="preserve">
+    <value>Порожній запит</value>
+  </data>
+  <data name="Errors.InvalidPayload" xml:space="preserve">
+    <value>Некоректні дані</value>
+  </data>
+  <data name="Errors.GeneratedPlanLoadFailed" xml:space="preserve">
+    <value>Не вдалося завантажити згенерований план</value>
+  </data>
+  <data name="Errors.UpdatedPlanLoadFailed" xml:space="preserve">
+    <value>Не вдалося завантажити оновлений план</value>
+  </data>
+  <data name="Errors.RecommendationIdRequired" xml:space="preserve">
+    <value>Потрібен RecommendationId</value>
+  </data>
+  <data name="Telemetry.ReceiveSuccess" xml:space="preserve">
+    <value>Телеметрія отримана успішно</value>
+  </data>
+  <data name="Telemetry.BatchSuccess" xml:space="preserve">
+    <value>Пакет із {0} записів отримано успішно</value>
+  </data>
+</root>
+

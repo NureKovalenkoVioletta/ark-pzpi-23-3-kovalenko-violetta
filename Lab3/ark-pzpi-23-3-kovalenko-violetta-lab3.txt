@@ -1,0 +1,4210 @@
+﻿Міністерство освіти та науки України
+
+
+Харківський національний університет радіоелектроніки
+
+
+Кафедра ПІ
+
+
+ЗВІТ
+з лабораторної роботи № 3
+з дисципліни “Аналіз та рефакторинг коду
+на тему:
+“Розробка бізнес логіки та функцій адміністрування серверної частини системи”
+
+
+
+
+
+
+
+
+Виконала:                                                        
+ст. гр.  ПЗПІ-23-3                                                       Коваленко В. О.
+
+
+Перевірив:
+ст. викладач кафедри ПІ                                            Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+________________
+1 ІСТОРІЯ ЗМІН
+Таблиця 1.1 – Історія змін у звіті
+№
+	Дата
+	Версія звіту
+	Опис змін та виправлень
+	1
+	16.12.2025
+	0.1
+	Створено розділ “Завдання”
+	2
+	18.12.2025
+	0.2
+	Додано розділ “Опис виконаної роботи”
+	3
+	20.12.2025
+	1.0
+	Додано додатки А, Б, В
+	________________
+
+
+3 ЗАВДАННЯ
+1. Розробити бізнес логіку серверної частини програмної системи:
+   * Спроектувати алгоритми, що будуть реалізовані в бізнес логіці. Бізнес логіка повинна забезпечувати основні операції з даними, обробку запитів від клієнтів, та виконання специфічних правил роботи системи.
+2. Розробити функції адміністрування серверної частини програмної системи:
+   * Розробити функції, які забезпечуватимуть адміністрування системи, наприклад, управління користувачами, налаштування системних параметрів, моніторинг активності, доступ до логів та управління ролями.
+3. Створити програмну реалізацію бізнес логіки та функцій адміністрування серверної частини:
+   * Реалізувати програмний код для бізнес логіки на серверній частині, включаючи обробку запитів до бази даних та взаємодію з клієнтами.
+   * Реалізувати програмний код для функцій адміністрування, зокрема функції управління користувачами, моніторингу, та зміни системних параметрів.
+4. Перевірити роботу серверної частини системи:
+   * Провести тестування розроблених функцій бізнес логіки та адміністрування. Переконатися у коректній роботі всіх розроблених компонентів та їх взаємодії з клієнтами і базою даних.
+5. Завантажити або оновити створений програмний код у GitHub репозиторій:
+   * Використовуючи Git, зберегти всі зміни до репозиторію, що стосується серверної частини. Виконати стандартні команди Git для оновлення репозиторію:
+________________
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+3.1 Вступ
+У межах третьої лабораторної роботи я розроблю серверну частину програмної системи автоматизованих дієт. Робота зосереджена на реалізації бізнес логіки та функцій адміністрування. Серверна частина буде розроблена для обробки запитів клієнтів, керуванням даних користувачів та забезпеченням виконання бізнес  правил роботи системи. Під час виконання роботи я:
+* спроєктую алгоритми бізнес логіки для формування дієт, обліку параметрів користувачів та обробки результатів
+* реалізую серверні сервіси для взаємодії з базою даних
+* розроблю функції адміністрування, керування користувачами, ролями та системними параметрами
+* перевірю коректність роботи серверних компонентів шляхом тестування
+* збережу та оновлюю програмний код у GitHub репозиторії за допомогою Git
+Для реалізації серверної частини я застососую ASP.NET Core Web API, мову C#, Entity Framework Core та MS SQL Server. 
+3.2 Розробка бізнес логіки
+3.2.1 Збір даних з фітнес-браслета
+Призначення підсистеми
+Даний функціональний блок відповідає за прийом телеметричних даних, а також інформації про сон від підключених клієнтських фітнес браслетів. Я реалізую збереження отриманих даних у базі даних та формую основу для подальшої аналітики, статистичної обробки і корекції раціону користувача. 
+Алгоритми та логіка прийому телеметрії
+Прийом телеметрії реалізовано через окремий контролер TelemetryController (див. Додаток Б, Б.1). Контролер приймає HTTP POST запити від девайсів. Підтримуються два сценарії:
+* прийом одного пакета телеметрії через маршрут /api/telemetry/receive
+* прийом набору пакетів телеметрії через маршрут /api/telemetry/receive/batch
+У першому випадку клієнт передає один об’єкт TelemetryReceiveDto,
+
+public class TelemetryReceiveDto
+{
+    [Required]
+    [JsonPropertyName("deviceId")]
+    public int DeviceId { get; set; }
+
+
+    [Required]
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
+
+
+    [Required]
+    [JsonPropertyName("telemetryType")]
+    public TelemetryType TelemetryType { get; set; }
+
+
+    [Required]
+    [Range(0, double.MaxValue, ErrorMessage = "Value must be non-negative")]
+    [JsonPropertyName("value")]
+    public decimal Value { get; set; }
+
+
+    [JsonPropertyName("metadata")]
+    public Dictionary<string, object>? Metadata { get; set; }
+}
+
+
+який містить тип телеметрії, його показники, метадані та часові мітки. У другому випадку передається колекція таких об’єктів у складі TelemetryReceiveBatchDto.
+
+
+public class TelemetryReceiveBatchDto
+{
+    [Required]
+    [MinLength(1, ErrorMessage = "Batch must contain at least one item")]
+    [MaxLength(1000, ErrorMessage = "Batch cannot contain more than 1000 items")]
+    [JsonPropertyName("items")]
+    public List<TelemetryReceiveDto> Items { get; set; } = new();
+}
+
+
+Після отримання запиту я виконую перевірку коректності вхідних даних на рівні DTO. Валідація охоплює обов’язкові поля, допустимі діапазони значень та узгодженість часових міток. Якщо перевірка не проходить, сервер повертає повідомлення про помилку у локалізованому вигляді.
+За умови успішної валідації контролер передає дані до сервісного шару. Для обробки телеметрії я застосовую інтерфейс ITelemetryProcessingService та його сервісну реалізацію TelemetryProcessingService (див. Додаток Б, Б.2). Для одиночних пакетів викликається метод ProcessTelemetryAsync, для батчів викликається ProcessBatchAsync. Після завершення обробки клієнт отримує позитивну відповідь. Текст відповіді формується відповідно до поточної локалі.
+Збереження сирих даних
+Усі телеметричні дані зберігаються у вигляді сирих семплів без попередньої агрегації. Кожен показник записується як окремий об’єкт TelemetrySample.
+
+
+public class TelemetrySample
+{
+    public int SampleId { get; set; }
+    public int DeviceId { get; set; }
+    public DateTime Timestamp { get; set; }
+    public TelemetryType TelemetryType { get; set; }
+    public decimal TelemetryValue { get; set; }
+
+
+    public Device Device { get; set; } = null!;
+}
+
+
+За збереження відповідає сервіс TelemetrySampleService (див. Додаток Б, Б.3) та відповідний репозиторій. Репозиторій інкапсулює доступ до бази даних та виконує операції додавання, читання та оновлення записів.
+Інформація про сон та тренування має окремі доменні моделі. Для сну застосовується сутність SleepRecord,
+
+
+public class SleepRecord
+{
+    public int SleepId { get; set; }
+    public int DeviceId { get; set; }
+    public DateTime Date { get; set; }
+    public int TotalSleepMinutes { get; set; }
+    public int DeepSleepMinutes { get; set; }
+    public int LightSleepMinutes { get; set; }
+    public int AwakeMinutes { get; set; }
+    public decimal? SleepQuality { get; set; }
+    public DateTime? StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+
+
+    public Device Device { get; set; } = null!;
+}
+
+
+3.2.2 Формування персонального харчового плану
+Наступний логічний модуль відповідає за формування персонального денного харчового плану користувача. Я реалізувала логіку автоматичного підбору раціону з урахуванням індивідуального профілю, поставлених цілей, дієтарних обмежень, медичних станів, алергенів та історії споживання рецептів. Результатом роботи модуля є структурований денний план харчування з розподілом калорій і макронутрієнтів за прийомами їжі, готовий до подальшої корекції та аналізу.
+Вхідні дані для формування плану
+Основним джерелом даних є профіль користувача. Я використовую вік, стать, вагу, зріст та рівень фізичної активності для розрахунку енергетичних потреб. Ціль користувача визначає напрямок корекції калорійності раціону. Дієтарні обмеження, медичні стани та алергени впливають на допустимий набір продуктів і рецептів. Налаштування PreferredUnits застосовуються для коректного формування відповідей.
+
+
+public class UserProfile
+{
+    public int ProfileId { get; set; }
+    public int UserId { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public Sex Sex { get; set; }
+    public decimal HeightCm { get; set; }
+    public decimal CurrentWeightKg { get; set; }
+    public ActivityLevel ActivityLevel { get; set; }
+    public GoalType? GoalType { get; set; }
+    public string? MedicalConditions { get; set; }
+    public PreferredUnits PreferredUnits { get; set; }
+    public DateTime? BirthDate { get; set; }
+
+
+    public User User { get; set; } = null!;
+}
+
+
+Другим важливим джерелом є база продуктів і рецептів. Для кожного рецепта зберігається калорійність, склад макронутрієнтів та набір структурованих тегів ProductTags. 
+
+
+[Flags]
+public enum ProductTags
+{
+    None = 0,
+    Meat = 1 << 0,
+    Fish = 1 << 1,
+    Dairy = 1 << 2,
+    Egg = 1 << 3,
+    Honey = 1 << 4,
+    Gluten = 1 << 5,
+    PlantMilk = 1 << 6,
+    Alcohol = 1 << 7,
+    Shellfish = 1 << 8,
+    Peanut = 1 << 9,
+    TreeNut = 1 << 10,
+    Soy = 1 << 11,
+    Sesame = 1 << 12,
+    Legume = 1 << 13,
+    HighSodium = 1 << 14,
+    HighGI = 1 << 15,
+    HighProtein = 1 << 16,
+    Potassium = 1 << 17,
+    Phosphorus = 1 << 18,
+    Sugar = 1 << 19,
+    Pork = 1 << 20
+}
+
+
+Додатково я застосовую системні налаштування та константи. До них належать обмеження на кількість повторів рецептів протягом дня, відсотковий розподіл калорій між прийомами їжі та допустимі відхилення макронутрієнтів.
+Розрахунок калорійності та макронутрієнтів
+
+
+    private const decimal BMR_WEIGHT_MULTIPLIER = 10m;
+    private const decimal BMR_HEIGHT_MULTIPLIER = 6.25m;
+    private const decimal BMR_AGE_MULTIPLIER = 5m;
+    private const decimal BMR_MALE_CONSTANT = 5m;
+    private const decimal BMR_FEMALE_CONSTANT = 161m;
+    private const decimal BMR_OTHER_CONSTANT = 78m;
+
+
+    private const decimal TDEE_SEDENTARY = 1.2m;
+    private const decimal TDEE_LIGHTLY_ACTIVE = 1.375m;
+    private const decimal TDEE_MODERATELY_ACTIVE = 1.55m;
+    private const decimal TDEE_VERY_ACTIVE = 1.725m;
+    private const decimal TDEE_EXTREMELY_ACTIVE = 1.9m;
+
+
+    private const decimal BREAKFAST_CALORIE_PERCENTAGE = 0.275m;
+    private const decimal LUNCH_CALORIE_PERCENTAGE = 0.325m;
+    private const decimal DINNER_CALORIE_PERCENTAGE = 0.275m;
+    private const decimal SNACK_CALORIE_PERCENTAGE = 0.125m;
+
+
+    private const int RECENT_DAYS_TO_EXCLUDE = 7;
+    private const decimal CALORIE_TOLERANCE = 0.15m;
+    private const decimal MACRO_TOLERANCE = 0.20m;
+    private const int MAX_RECIPE_USAGE_PER_DAY = 1;
+
+
+
+
+Отже, першим етапом роботи цього модуляє визначення базового обміну речовин (BMR). Для цього я створила додатковий клас-хелпер CalorieCalculator (див. Додаток Б, Б.4), де обчислюю базальний обмін речовин за Формулою Міффліна - Сан-Жеора з урахуванням статі користувача. 
+Для жінок:
+(10 × вага у кг) + (6,25 × зріст у см) − (5 × вік у роепх) − 161
+Для чоловіків: 
+(10 × вага у кг) + (6,25 × зріст у см) − (5 × вік у роках) + 5
+Далі отримане значення масштабується коефіцієнтом активності для визначення добової енерговитрати. Розрахунок загальних щоденних енергетичних витрат (TDEE) відбувається за формулою TDEE = BMR × Коефіцієнт Активності, де BMR (Базовий Метаболізм) - це мінімальні калорії для життєдіяльності. Визначення активності відбувається шляхом отримання користувацьких даних та підбору необхідного коофіцієнта згідно з активністю
+
+
+    public static decimal CalculateTDEE(decimal bmr, ActivityLevel activityLevel)
+    {
+        var multiplier = activityLevel switch
+        {
+            ActivityLevel.Sedentary => TDEE_SEDENTARY,
+            ActivityLevel.LightlyActive => TDEE_LIGHTLY_ACTIVE,
+            ActivityLevel.ModeratelyActive => TDEE_MODERATELY_ACTIVE,
+            ActivityLevel.VeryActive => TDEE_VERY_ACTIVE,
+            ActivityLevel.ExtremelyActive => TDEE_EXTREMELY_ACTIVE,
+            _ => TDEE_SEDENTARY
+        };
+
+
+        return bmr * multiplier;
+    }
+
+
+Наступним кроком я коригую добову калорійність відповідно до цілі користувача. Для набору маси додається фіксована надбавка. Для підтримки ваги калорійність залишається без змін. Для зниження ваги застосовується дефіцит. Для цього я створила допоміжний клас-хелпер MacroNutrientsCalculator (див. Додаток Б, Б.5), де за домопомою функції CalculateCaloriesByGoal коригую добову норму калорійності
+
+
+    public static decimal CalculateCaloriesByGoal(decimal tdee, GoalType? goalType)
+    {
+        if (goalType == null)
+        {
+            return CalculateCaloriesForMaintenance(tdee);
+        }
+
+
+        return goalType switch
+        {
+            GoalType.WeightLoss => CalculateCaloriesForWeightLoss(tdee),
+            GoalType.WeightGain => CalculateCaloriesForWeightGain(tdee),
+            GoalType.WeightMaintenance => CalculateCaloriesForMaintenance(tdee),
+            GoalType.HealthCorrection => CalculateCaloriesForMaintenance(tdee),
+            _ => CalculateCaloriesForMaintenance(tdee)
+        };
+    }
+
+
+Після визначення калорій у класі MacroNutrientsCalculator (див. Додаток Б, Б.5) я розраховую добові макронутрієнти за домопомогою функції CalculateMacros. Білки визначаються з урахуванням маси тіла та мінімальних потреб. Жири розраховуються як частка від загальної калорійності. Вуглеводи визначаються як залишок після врахування білків і жирів. 
+
+
+    public static MacroNutrientsDto CalculateMacros(decimal calories, decimal weight, GoalType? goalType)
+    {
+        var proteinGrams = CalculateProteinGrams(calories, weight, goalType);
+        var fatGrams = CalculateFatGrams(calories, weight, goalType);
+        var carbsGrams = CalculateCarbsGrams(calories, proteinGrams, fatGrams);
+
+
+        return new MacroNutrientsDto
+        {
+            Calories = calories,
+            ProteinGrams = Math.Round(proteinGrams, 1),
+            FatGrams = Math.Round(fatGrams, 1),
+            CarbsGrams = Math.Round(carbsGrams, 1)
+        };
+    }
+
+
+Отримані денні значення я розподіляю між прийомами їжі. Для цього застосовується фіксований відсотковий розподіл калорій. Після розподілу виконується перевірка суми, щоб уникнути накопичення похибок. Макронутрієнти масштабуються пропорційно калоріям кожного прийому з контролем відповідності денним таргетам. Для цього я створила сервіс MealPlanGeneratorService (див. Додаток Б, Б.6), де за допомогою функції DistributeCaloriesByMealTime
+
+
+  private Dictionary<MealTime, decimal> DistributeCaloriesByMealTime(decimal totalCalories)
+    {
+        return new Dictionary<MealTime, decimal>
+        {
+            { MealTime.Breakfast, Math.Round(totalCalories * BREAKFAST_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Lunch, Math.Round(totalCalories * LUNCH_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Dinner, Math.Round(totalCalories * DINNER_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Snack, Math.Round(totalCalories * SNACK_CALORIE_PERCENTAGE, 1) }
+        };
+    }
+
+
+ та функції BalanceMacrosForMeals я розподілила денні значення калорійності між прийомами та збалансувала макронутрієнти відповідно
+
+
+    private Dictionary<MealTime, MacroNutrientsDto> BalanceMacrosForMeals(
+        Dictionary<MealTime, decimal> caloriesByMealTime, 
+        MacroNutrientsDto dailyMacros)
+    {
+        var macrosByMealTime = new Dictionary<MealTime, MacroNutrientsDto>();
+
+
+        foreach (var (mealTime, mealCalories) in caloriesByMealTime)
+        {
+            var calorieRatio = mealCalories / dailyMacros.Calories;
+            
+            macrosByMealTime[mealTime] = new MacroNutrientsDto
+            {
+                Calories = mealCalories,
+                ProteinGrams = Math.Round(dailyMacros.ProteinGrams * calorieRatio, 1),
+                FatGrams = Math.Round(dailyMacros.FatGrams * calorieRatio, 1),
+                CarbsGrams = Math.Round(dailyMacros.CarbsGrams * calorieRatio, 1)
+            };
+        }
+
+
+        return macrosByMealTime;
+    }
+
+
+Фільтрація продуктів і рецептів
+Перед підбором рецептів я виконую детерміновану фільтрацію доступних продуктів. Для цього я створила допоміжний клас-хелпер ProductFilterHelper (див. Додаток Б, Б.7), де основою фільтрації є структуровані теги ProductTags. Основна логіка фільтрації відбувається у методі FilterProductsByRestrictions, який за домопогою інших допоміжних класів фільтрує продуктові заборони та обмеження
+
+
+    public static IEnumerable<Product> FilterProductsByRestrictions(
+        IEnumerable<Product> products, 
+        UserMedicalRestrictionsDto restrictions,
+        bool includeAdvisory = true)
+    {
+        var filtered = products;
+
+
+        if (restrictions.Allergens.Any())
+        {
+            filtered = FilterProductsByAllergens(filtered, restrictions.Allergens);
+        }
+
+
+        if (restrictions.DietaryRestriction.HasValue && restrictions.DietaryRestriction.Value != DietaryRestrictionType.None)
+        {
+            filtered = FilterProductsByDietaryRestrictions(filtered, restrictions.DietaryRestriction.Value);
+        }
+
+
+        if (restrictions.MedicalConditions.Any())
+        {
+            filtered = FilterProductsByMedicalConditions(filtered, restrictions.MedicalConditions, includeAdvisory);
+        }
+
+
+        return filtered;
+    }
+
+
+Дієтарні обмеження користувача транслюються у набір заборонених тегів. Для обробки таких обмежень я створила функцію FilterProductsByDietaryRestrictions
+
+
+    public static IEnumerable<Product> FilterProductsByDietaryRestrictions(
+        IEnumerable<Product> products, 
+        DietaryRestrictionType restriction)
+    {
+        return restriction switch
+        {
+            DietaryRestrictionType.Vegetarian => FilterVegetarian(products),
+            DietaryRestrictionType.Vegan => FilterVegan(products),
+            DietaryRestrictionType.Pescatarian => FilterPescatarian(products),
+            DietaryRestrictionType.GlutenFree => FilterGlutenFree(products),
+            DietaryRestrictionType.LactoseFree => FilterLactoseFree(products),
+            DietaryRestrictionType.Halal => FilterHalal(products),
+            DietaryRestrictionType.Kosher => FilterKosher(products),
+            _ => products
+        };
+    }
+
+
+Наприклад, для веганського раціону виключаються всі теги, пов’язані з продуктами тваринного походження.
+
+
+    private static IEnumerable<Product> FilterVegan(IEnumerable<Product> products)
+    {
+        var forbiddenTags = ProductTags.Meat | ProductTags.Pork | ProductTags.Fish | ProductTags.Shellfish | ProductTags.Dairy | ProductTags.Egg | ProductTags.Honey;
+        return products.Where(p => (p.Tags & forbiddenTags) == 0);
+    }
+
+
+Аналогічно обробляються інші типи дієт.
+Медичні стани накладають додаткові обмеження. Для діабету виключаються рецепти з високим глікемічним індексом або вмістом цукру. Для гіпертонії фільтруються рецепти з високим вмістом натрію. Для захворювань нирок обмежується білок і певні мікроелементи. Ця логіка була реалізована за допомогою метода FilterProductsByMedicalConditions та допоміжним методом ShouldExcludeByTags
+
+
+    public static IEnumerable<Product> FilterProductsByMedicalConditions(
+        IEnumerable<Product> products, 
+        List<string> medicalConditions,
+        bool includeAdvisory = true)
+    {
+        if (medicalConditions == null || !medicalConditions.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => !ShouldExcludeByTags(p, medicalConditions, includeAdvisory));
+    }
+
+
+
+
+Алергени користувача обробляються шляхом прямого виключення рецептів з відповідними тегами за домопомгою функції FilterProductsByAllergens
+
+
+    public static IEnumerable<Product> FilterProductsByAllergens(
+        IEnumerable<Product> products, 
+        List<string> userAllergens)
+    {
+        if (userAllergens == null || !userAllergens.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => 
+            string.IsNullOrWhiteSpace(p.Allergens) || 
+            !userAllergens.Any(allergen => 
+                p.Allergens.Contains(allergen, StringComparison.OrdinalIgnoreCase)));
+    }
+
+
+Параметр includeAdvisory дозволяє керувати жорсткістю фільтрації. За його вимкнення деякі рекомендаційні обмеження можуть бути послаблені. Основні медичні та алергенні обмеження при цьому залишаються активними.
+Генерація денного плану харчування
+Після підготовки таргетів і відфільтрованого набору рецептів я створила основний процес генерації. За нього відповідає сервіс MealPlanGeneratorService (див. Додаток Б, Б.6). 
+Сервіс працює по прийомах їжі послідовно. Для кожного прийому я викликаю логіку підбору рецептів за допомогою функції SelectRecipesForMeal у сервісі MealPlanGeneratorService (див. Додаток Б, Б.6). Алгоритм аналізує доступні рецепти, перевіряє їх відповідність цільовим калоріям і макронутрієнтам конкретного прийому, а також враховує історію використання рецептів.
+На першому кроці я завантажую повний список рецептів з репозиторію. Після цього одразу виключаю рецепти, які заборонені для поточного сценарію генерації. До цього списку входять рецепти, які були використані раніше або не можуть застосовуватись з точки зору бізнес правил. Така фільтрація зменшує обсяг даних для подальшої обробки.
+
+
+var allRecipes = await _recipeRepository.GetAllAsync();
+var availableRecipes = allRecipes
+    .Where(r => !excludedRecipeIds.Contains(r.RecipeId))
+    .ToList();
+
+
+На цьому етапі для кожного доступного рецепта я окремо завантажую детальну інформацію про його склад. Далі перевіряю, чи всі продукти, що входять до рецепта, присутні у множині дозволених ідентифікаторів. Якщо хоча б один продукт не дозволений, рецепт вважається непридатним. Результат перевірки зберігається разом з рецептом для подальшої фільтрації.
+
+
+var recipesWithProducts = new List<(Recipe recipe, bool hasAllowedProducts)>();
+
+
+foreach (var recipe in availableRecipes)
+{
+    var recipeDetails = await _recipeRepository.GetRecipeDetailsByIdAsync(recipe.RecipeId);
+    if (recipeDetails?.RecipeProducts != null)
+    {
+        var hasAllowedProducts = recipeDetails.RecipeProducts
+            .All(rp => allowedProductIds.Contains(rp.ProductId));
+
+
+        recipesWithProducts.Add((recipe, hasAllowedProducts));
+    }
+}
+
+
+Після перевірки складу я видаляю рецепти, які перевищили допустиму кількість використань протягом дня. Метод CanUseRecipe аналізує словник recipeUsageCount і гарантує дотримання правила неповторення рецептів. У фінальний список потрапляють лише ті рецепти, які одночасно складаються з дозволених продуктів і не порушують ліміти.
+
+
+var filteredRecipes = recipesWithProducts
+    .Where(r => r.hasAllowedProducts && CanUseRecipe(r.recipe, recipeUsageCount))
+    .Select(r => r.recipe)
+    .ToList();
+
+
+Перед початком підбору я ініціалізую змінні для накопичення поточних значень калорій та макронутрієнтів. Ці змінні відображають сумарні значення вже підібраних рецептів у межах одного прийому їжі.
+
+
+var selectedRecipes = new List<Recipe>();
+var currentCalories = 0m;
+var currentProtein = 0m;
+var currentFat = 0m;
+var currentCarbs = 0m;
+
+
+Далі я сортую всі допустимі рецепти за абсолютною різницею між калорійністю однієї порції та цільовими калоріями прийому їжі. 
+
+
+var sortedRecipes = filteredRecipes
+    .OrderBy(r => Math.Abs(r.RecipeCaloriesPerPortion - targetCalories))
+    .ToList();
+
+
+У циклі я по черзі розглядаю кожен рецепт. Перед обробкою повторно перевіряю ліміт використання, оскільки стан лічильника міг змінитися під час попередніх ітерацій.
+
+
+foreach (var recipe in sortedRecipes)
+{
+    if (!CanUseRecipe(recipe, recipeUsageCount))
+    {
+        continue;
+    }
+
+
+На цьому кроці я обчислюю значення калорій і макронутрієнтів, які будуть отримані після додавання поточного рецепта. Розрахунок виконується інкрементально, без зміни поточного стану, поки не пройдені всі перевірки.
+
+
+var newCalories = currentCalories + recipe.RecipeCaloriesPerPortion;
+var newProtein = currentProtein + recipe.RecipeProteinPerPortion;
+var newFat = currentFat + recipe.RecipeFatPerPortion;
+var newCarbs = currentCarbs + recipe.RecipeCarbsPerPortion;
+
+
+Далі я реалізую ключову частина алгоритму. Я перевіряю, щоб калорійність не перевищувала верхню межу допустимого відхилення. Далі окремо розраховую відносні відхилення калорій та кожного макронутрієнта. Рецепт вважається придатним лише тоді, коли всі відхилення знаходяться в межах заданих толерансів.
+
+
+if (newCalories <= targetCalories * (1 + CALORIE_TOLERANCE))
+{
+    var caloriesDiff = Math.Abs(newCalories - targetCalories) / targetCalories;
+    var proteinDiff = Math.Abs(newProtein - targetMacros.ProteinGrams) / targetMacros.ProteinGrams;
+    var fatDiff = Math.Abs(newFat - targetMacros.FatGrams) / targetMacros.FatGrams;
+    var carbsDiff = Math.Abs(newCarbs - targetMacros.CarbsGrams) / targetMacros.CarbsGrams;
+
+
+    if (caloriesDiff <= CALORIE_TOLERANCE &&
+        proteinDiff <= MACRO_TOLERANCE &&
+        fatDiff <= MACRO_TOLERANCE &&
+        carbsDiff <= MACRO_TOLERANCE)
+
+
+Після успішної перевірки рецепт додається до списку вибраних. Я оновлюю лічильник використання рецепта та фіксую нові поточні значення калорій і макронутрієнтів. Стан алгоритму змінюється тільки на цьому етапі.
+
+
+selectedRecipes.Add(recipe);
+IncrementUsage(recipe, recipeUsageCount);
+currentCalories = newCalories;
+currentProtein = newProtein;
+currentFat = newFat;
+currentCarbs = newCarbs;
+
+
+Після кожного додавання я перевіряю, чи досягнута нижня межа допустимої калорійності прийому їжі. Якщо умова виконана, підбір рецептів для цього прийому завершується.
+
+
+if (currentCalories >= targetCalories * (1 - CALORIE_TOLERANCE))
+{
+    break;
+}
+
+
+Якщо основний алгоритм не зміг підібрати жодного рецепта, я застосовую fallback механізм. У цьому випадку обирається рецепт з найменшою різницею по калоріях, який не порушує ліміти використання. 
+
+
+if (selectedRecipes.Count == 0 && filteredRecipes.Any())
+{
+    var bestAllowed = sortedRecipes.FirstOrDefault(r => CanUseRecipe(r, recipeUsageCount));
+    var bestRecipe = bestAllowed ?? sortedRecipes.First();
+
+
+    if (CanUseRecipe(bestRecipe, recipeUsageCount))
+    {
+        selectedRecipes.Add(bestRecipe);
+        IncrementUsage(bestRecipe, recipeUsageCount);
+    }
+}
+
+
+Функція повертає список підібраних рецептів для конкретного прийому їжі. Отриманий результат вже враховує калорійні таргети, баланс макронутрієнтів, дієтарні обмеження та правило різноманітності.
+Після вибору необхідних рецептів, за допомогою методу CreateMealsForPlanAsync, я формую прийоми їжі (Meal) для денного плану харчування (DailyDietPlan) на основі підібраних рецептів, згрупованих за часом прийому їжі, а також розрахованих макронутрієнтів.
+На початку я ініціалізую лічильник mealOrder, який відповідає за порядок прийомів їжі протягом дня (сніданок, обід, вечеря тощо).
+
+
+var mealOrder = 1;
+
+
+Далі я проходжуся по всіх прийомах їжі, відсортованих за значенням MealTime для  формування прийомів їжі у правильному порядку протягом дня.
+
+
+foreach (var (mealTime, recipes) in mealsByTime.OrderBy(m => m.Key))
+
+
+Якщо для певного часу прийому їжі не було підібрано жодного рецепта, я пропускаю цей етап і переходжу до наступного.
+
+
+if (!recipes.Any())
+{
+    continue;
+}
+
+
+Для кожного прийому їжі я отримую цільові макронутрієнти та обчислюю сумарну калорійність, білки, жири та вуглеводи на основі всіх рецептів у цьому прийомі їжі.
+
+
+var mealMacros = macrosByMealTime[mealTime];
+var totalCalories = recipes.Sum(r => r.RecipeCaloriesPerPortion);
+var totalProtein = recipes.Sum(r => r.RecipeProteinPerPortion);
+var totalFat = recipes.Sum(r => r.RecipeFatPerPortion);
+var totalCarbs = recipes.Sum(r => r.RecipeCarbsPerPortion);
+
+
+На основі розрахованих даних я створюю об’єкт Meal, який містить інформацію про прийом їжі, його порядок та цільові показники макронутрієнтів.
+
+
+var meal = new Meal
+{
+    DailyDietPlanId = plan.DailyDietPlanId,
+    MealTime = mealTime,
+    MealOrder = mealOrder++,
+    MealTargetCalories = Math.Round(totalCalories, 1),
+    MealTargetProtein = Math.Round(totalProtein, 1),
+    MealTargetFat = Math.Round(totalFat, 1),
+    MealTargetCarbs = Math.Round(totalCarbs, 1)
+};
+
+
+Після створення прийому їжі я зберігаю його в базі даних та отримую збережену сутність з ідентифікатором.
+
+
+var savedMeal = await _mealRepository.AddAsync(meal);
+
+
+Далі я проходжуся по кожному рецепту, який входить до поточного прийому їжі і для  кожного рецепта:
+* отримую детальну інформацію про рецепт,
+* визначаю цільову калорійність на один рецепт,
+* обчислюю коефіцієнт порції,
+* формую метадані порцій.
+
+var recipeDetails = await _recipeRepository.GetRecipeDetailsByIdAsync(recipe.RecipeId);
+var perRecipeTargetCalories = mealMacros.Calories / recipes.Count;
+var portionMultiplier = PortionCalculator.CalculatePortionMultiplier(recipe, perRecipeTargetCalories);
+var portionsMetadata = recipeDetails != null
+    ? PortionCalculator.BuildPortionsMetadata(recipeDetails, portionMultiplier)
+    : string.Empty;
+
+
+Після цього я створюю сутність MealRecipe, яка описує зв’язок між прийомом їжі та рецептом, включаючи інформацію про порції.
+
+
+var mealRecipe = new MealRecipe
+{
+    MealId = savedMeal.MealId,
+    RecipeId = recipe.RecipeId,
+    PortionsMetadata = portionsMetadata
+};
+
+
+На завершальному етапі я зберігаю зв’язок між прийомом їжі та рецептом у базі даних.
+
+
+await _mealRecipeRepository.AddAsync(mealRecipe);
+
+
+Після формування всіх прийомів я виконую перевірку сумарних калорій і макронутрієнтів. Якщо виникають незначні відхилення, система коригує значення в межах заданих толерансів. Корекція не змінює структуру плану та не порушує обмеження користувача.
+3.2.3 Корекція раціону на основі динамічних даних
+У межах даного логічного модуля я реалізувала механізм автоматичної корекції раціону харчування на основі динамічних фізіологічних та поведінкових даних користувача. Метою є своєчасне виявлення змін у рівні фізичної активності, якості сну та показниках серцевого ритму, а також формування обґрунтованих рекомендацій щодо корекції калорійності та макронутрієнтів денного раціону. Система не змінює раціон без участі користувача: спочатку я формую рекомендацію, після чого користувач може опціонально застосувати ці зміни до поточного денного плану харчування. У разі застосування виконується ребаланс прийомів їжі з перерахунком цільових макронутрієнтів і порцій рецептів.
+Алгоритми та послідовність
+На першому етапі я аналізую фізичну активність користувача за допомогою сервісу ActivityMonitorService (див. Додаток Б, Б.8). Основна задача цього сервісу – зібрати об’єктивні дані про активність за поточний день та порівняти їх з попередніми значеннями .Для цього я створила головний метод аналізу активності користувача. CheckActivityChangesAsync у сервісі ActivityMonitorService (див. Додаток Б, Б.8)
+Цей метод є вхідною точкою логічного модуля аналізу активності. Я передаю ідентифікатор користувача та конкретну дату. Аналіз завжди привʼязаний до одного дня, а всі порівняння виконуються відносно попереднього тижня. Наступний кроком я формую часові межі для вибірки даних, тобтоі визначаю інтервал поточного дня і окремо інтервал для історичних даних за сім днів. 
+
+
+var day = date.Date;
+var dayStart = day;
+var dayEnd = day.AddDays(1);
+var weekStart = day.AddDays(-7);
+
+
+Після цього я отримую всі пристрої користувача. Я аналізую телеметрію не напряму по користувачу, а через привʼязані девайси. 
+
+
+var deviceIds = await _context.Devices
+    .Where(d => d.UserId == userId)
+    .Select(d => d.DeviceId)
+    .ToListAsync();
+
+
+Якщо у користувача немає підключених девайсів, я повертаю порожній результат. 
+
+
+if (!deviceIds.Any())
+{
+    return new ActivityChangeResult();
+}
+
+
+Потім я рахую кількість кроків за поточний день. Я агрегую всі записи з типом Steps за обраний день. Результат представляє сумарну активність користувача. 
+
+
+var stepsToday = await _context.TelemetrySamples
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.TelemetryType == TelemetryType.Steps &&
+        ts.Timestamp >= dayStart &&
+        ts.Timestamp < dayEnd)
+    .SumAsync(ts => (decimal?)ts.TelemetryValue) ?? 0m;
+
+
+Далі я аналізую пульс за поточний день. Я збираю всі значення пульсу за день і обчислюю середнє. Пульс аналізується як індикатор фізіологічного стану. Якщо дані відсутні, я повертаю null.
+
+
+var heartRateTodayList = await _context.TelemetrySamples
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.TelemetryType == TelemetryType.HeartRate &&
+        ts.Timestamp >= dayStart &&
+        ts.Timestamp < dayEnd)
+    .Select(ts => ts.TelemetryValue)
+    .ToListAsync();
+
+
+var heartRateToday = heartRateTodayList.Any()
+    ? heartRateTodayList.Average()
+    : (decimal?)null;
+
+
+Після цього я виконую аналогічний аналіз для інтенсивності тренувань. Інтенсивність показує рівень навантаження протягом дня. Середнє значення дозволяє коректно порівнювати різні дні незалежно від кількості тренувань.
+
+
+var intensityTodayList = await _context.TrainingSessions
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.StartTime >= dayStart &&
+        ts.StartTime < dayEnd)
+    .Select(ts => (decimal?)ts.Intensity)
+    .ToListAsync();
+
+
+var intensityToday = intensityTodayList.Any()
+    ? intensityTodayList.Average()
+    : (decimal?)null;
+
+
+
+
+Далі я переходжу до збору даних за попередній тиждень. Я групую кроки по днях і отримую список денних сум за тиждень. 
+
+
+var weeklyStepsDaily = await _context.TelemetrySamples
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.TelemetryType == TelemetryType.Steps &&
+        ts.Timestamp >= weekStart &&
+        ts.Timestamp < dayStart)
+    .GroupBy(ts => ts.Timestamp.Date)
+    .Select(g => g.Sum(x => x.TelemetryValue))
+    .ToListAsync();
+
+
+Аналогічно я збираю історію пульсу та тренувальної інтенсивності. 
+
+
+var weeklyHeartDaily = await _context.TelemetrySamples
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.TelemetryType == TelemetryType.HeartRate &&
+        ts.Timestamp >= weekStart &&
+        ts.Timestamp < dayStart)
+    .GroupBy(ts => ts.Timestamp.Date)
+    .Select(g => g.Average(x => x.TelemetryValue))
+    .ToListAsync();
+
+
+var weeklyIntensityDaily = await _context.TrainingSessions
+    .Where(ts =>
+        deviceIds.Contains(ts.DeviceId) &&
+        ts.StartTime >= weekStart &&
+        ts.StartTime < dayStart)
+    .GroupBy(ts => ts.StartTime.Date)
+    .Select(g => g.Average(x => (decimal)x.Intensity))
+    .ToListAsync();
+
+
+Після цього я формую обʼєкт тижневої активності.
+
+
+var weeklyAverage = new WeeklyActivityAverage
+{
+    AverageSteps = weeklyStepsDaily.Any()
+        ? weeklyStepsDaily.Average()
+        : 0m,
+    AverageHeartRate = weeklyHeartDaily.Any()
+        ? weeklyHeartDaily.Average()
+        : null,
+    AverageTrainingIntensity = weeklyIntensityDaily.Any()
+        ? weeklyIntensityDaily.Average()
+        : null
+};
+
+
+Далі я обчислюю відсоткові зміни між поточним днем і тижневою нормою. Відсотковий формат дозволить правильно оцінити зміни незалежно від абсолютного рівня активності користувача.
+
+
+var stepsChange = ComputeChangePercent(stepsToday, weeklyAverage.AverageSteps);
+var hrChange = ComputeChangePercent(heartRateToday, weeklyAverage.AverageHeartRate);
+var intensityChange = ComputeChangePercent(intensityToday, weeklyAverage.AverageTrainingIntensity);
+
+
+На фінальному етапі я формую результат аналізу.
+
+
+var result = new ActivityChangeResult
+{
+    WeeklyAverage = weeklyAverage,
+    StepsToday = stepsToday,
+    HeartRateToday = heartRateToday,
+    TrainingIntensityToday = intensityToday,
+    StepsChangePercent = stepsChange,
+    HeartRateChangePercent = hrChange,
+    TrainingIntensityChangePercent = intensityChange,
+    StepsSpike = stepsChange.HasValue &&
+                 stepsChange.Value > ActivityThresholds.StepsSpikeThreshold,
+    TrainingIntensityChange = intensityChange.HasValue &&
+                              Math.Abs(intensityChange.Value) > ActivityThresholds.TrainingIntensityChangeThreshold,
+    HeartRateAnomaly = heartRateToday.HasValue &&
+                       (heartRateToday < ActivityThresholds.RestHeartRateLow ||
+                        heartRateToday > ActivityThresholds.RestHeartRateHigh)
+};
+
+
+Я повертаю єдиний DTO, який описує зміну активності користувача за день. Далі цей результат передається у DietCorrectionService(див. Додаток Б, Б9) і є основою для прийняття рішень щодо корекції раціону.
+Другий етап присвячений аналізу якості сну, оскільки недосип безпосередньо впливає на відновлення організму, гормональний баланс та потребу в поживних речовинах. Я використовую SleepAnalysisService  (див. Додаток Б, Б.10), який аналізує дані за декілька останніх днів. Логіка сервісу SleepAnalysisService (див. Додаток Б, Б.10) збігається з ActivityMonitorService (див. Додаток Б, Б.8) У межах цього аналізу я обчислюю:
+   * середню тривалість сну,
+   * відсоток глибокого сну,
+   * інтегральний показник якості сну.
+Далі ці значення порівнюються з порогами, визначеними у SleepThresholds.
+
+
+public static class SleepThresholds
+{
+    public const int TotalSleepMinutesCritical = 360;            public const decimal DeepSleepPercentCritical = 0.20m;        
+public const decimal SleepQualityCritical = 0.60m;        
+}
+
+
+ Якщо хоча б один із критичних показників виходить за межі норми (наприклад, сон менше 6 годин або низька якість), я вважаю, що користувач перебуває у стані недосипу.
+Результат аналізу зберігається у DTO SleepQualityAnalysis, який використовується далі для прийняття рішення щодо корекції раціону. 
+
+
+public class SleepQualityAnalysis
+{
+    public decimal? AverageSleepHours { get; set; }
+    public decimal? AverageDeepSleepPercent { get; set; }
+    public decimal? AverageQuality { get; set; }
+    public bool IsSleepDeprived { get; set; }
+}
+Правила корекції (DietCorrectionHelper)
+На цьому етапі я переходжу від аналізу даних до формування правил корекції. Усі правила винесені в окремий helper-клас DietCorrectionHelper (див. Додаток Б, Б11), 
+Я розрізняю такі види сценаріїв:
+   * висока активність. Коригування калорій та макросів
+Калорії
+ public static decimal AdjustCaloriesForHighActivity(decimal currentCalories, decimal activityIncreasePercent)
+    {
+        if (activityIncreasePercent <= 0)
+        {
+            return currentCalories;
+        }
+
+
+        return currentCalories * (1 + activityIncreasePercent / 100m);
+    }
+
+
+Макроси
+    public static MacroNutrientsDto AdjustMacrosForHighActivity(
+        MacroNutrientsDto currentMacros,
+        decimal carbIncreasePercent = 0.10m,
+        decimal fatDecreasePercent = 0.05m)
+    {
+        var protein = currentMacros.ProteinGrams;
+        var fatDecreased = ApplyDecrease(currentMacros.FatGrams, fatDecreasePercent);
+        var carbsIncreased = ApplyIncrease(currentMacros.CarbsGrams, carbIncreasePercent);
+
+
+        var normalized = NormalizeToCalories(protein, fatDecreased, carbsIncreased, currentMacros.Calories);
+
+
+        normalized.FatGrams = Math.Min(normalized.FatGrams, fatDecreased);
+        normalized.CarbsGrams = Math.Max(normalized.CarbsGrams, carbsIncreased);
+        normalized.ProteinGrams = protein;
+        return normalized;
+    }
+
+
+   * низька активність,
+Калорії
+public static decimal AdjustCaloriesForLowActivity(decimal currentCalories, decimal activityDecreasePercent)
+    {
+        if (activityDecreasePercent <= 0)
+        {
+            return currentCalories;
+        }
+
+
+        var adjusted = currentCalories * (1 - activityDecreasePercent / 100m);
+        return adjusted < 0 ? 0 : adjusted;
+    }
+
+
+Макроси
+    public static MacroNutrientsDto AdjustMacrosForLowActivity(
+        MacroNutrientsDto currentMacros,
+        decimal carbDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.10m)
+    {
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var fat = currentMacros.FatGrams;
+        var carbsDecreased = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+
+
+        var normalized = NormalizeToCalories(protein, fat, carbsDecreased, currentMacros.Calories);
+        normalized.ProteinGrams = Math.Max(normalized.ProteinGrams, protein);
+        normalized.CarbsGrams = Math.Min(normalized.CarbsGrams, carbsDecreased);
+        normalized.FatGrams = fat;
+        return normalized;
+    }
+
+
+   * недосип,
+public static MacroNutrientsDto AdjustMacrosForSleepDeprivation(
+        MacroNutrientsDto currentMacros,
+        decimal carbDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.10m,
+        decimal fatIncreasePercent = 0m)
+    {
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var carbs = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+        var fat = ApplyIncrease(currentMacros.FatGrams, fatIncreasePercent);
+
+
+        return RecalculateCalories(protein, fat, carbs);
+    }
+   * аномальний пульс.
+public static MacroNutrientsDto AdjustForAbnormalHeartRate(
+        MacroNutrientsDto currentMacros,
+        decimal calorieDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.05m,
+        decimal carbDecreasePercent = 0.05m)
+    {
+        var targetCalories = AdjustCaloriesForLowActivity(currentMacros.Calories, calorieDecreasePercent);
+
+
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var carbs = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+        var fat = currentMacros.FatGrams;
+
+
+        var adjusted = RecalculateCalories(protein, fat, carbs);
+
+
+        if (adjusted.Calories > targetCalories && adjusted.Calories > 0)
+        {
+            var ratio = targetCalories / adjusted.Calories;
+            adjusted.ProteinGrams = Math.Round(adjusted.ProteinGrams * ratio, 1);
+            adjusted.FatGrams = Math.Round(adjusted.FatGrams * ratio, 1);
+            adjusted.CarbsGrams = Math.Round(adjusted.CarbsGrams * ratio, 1);
+            adjusted.Calories = targetCalories;
+        }
+        return adjusted;
+    }
+
+
+Для кожного сценарію я визначаю, як саме мають змінюватися калорії та макронутрієнти. Наприклад, при високій активності я збільшую частку вуглеводів, оскільки вони є основним джерелом енергії, а при недосипі підвищую білок для підтримки відновлення.
+також важливим методом є метод NormalizeToCalories. Після зміни макронутрієнтів він гарантує, що сумарна калорійність відповідає цільовому значенню, і при цьому зберігається напрям корекції
+
+
+    private static MacroNutrientsDto NormalizeToCalories(decimal protein, decimal fat, decimal carbs, decimal targetCalories)
+    {
+        var adjusted = RecalculateCalories(protein, fat, carbs);
+
+
+        if (adjusted.Calories <= 0 || targetCalories <= 0)
+        {
+            return adjusted;
+        }
+
+
+        var ratio = targetCalories / adjusted.Calories;
+        return new MacroNutrientsDto
+        {
+            Calories = Math.Round(targetCalories, 1),
+            ProteinGrams = Math.Round(adjusted.ProteinGrams * ratio, 1),
+            FatGrams = Math.Round(adjusted.FatGrams * ratio, 1),
+            CarbsGrams = Math.Round(adjusted.CarbsGrams * ratio, 1)
+        };
+    }
+Розрахунок скоригованих таргетів
+Я реалізувала DietCorrectionService (Див. Додаток Б, Б 9) для автоматичної корекції добового плану харчування на основі фактичних динамічних показників користувача. Сервіс аналізує фізичну активність, якість сну та аномалії пульсу. На основі цих даних я перераховую цільові калорії та макронутрієнти, формую рекомендацію та, за підтвердженням, перебалансовую меню.
+Точка входу. CheckAndSuggestCorrectionsAsync
+
+
+public async Task<List<Recommendation>> CheckAndSuggestCorrectionsAsync(int userId, int dailyDietPlanId)
+{
+    var plan = await _dailyDietPlanRepository.GetDailyDietPlanDetailsByIdAsync(dailyDietPlanId);
+    if (plan == null || plan.UserId != userId)
+    {
+        return new List<Recommendation>();
+    }
+
+
+    var locale = await ResolveLocale(userId);
+    var activity = await _activityMonitorService.CheckActivityChangesAsync(userId, plan.DailyPlanCreatedAt);
+    var sleep = await _sleepAnalysisService.AnalyzeSleepQualityAsync(userId, plan.DailyPlanCreatedAt);
+
+
+    var corrected = CalculateCorrectedMacros(plan, activity, sleep);
+
+
+    if (!HasMeaningfulChange(plan, corrected))
+    {
+        return new List<Recommendation>();
+    }
+
+
+    var reason = BuildReason(activity, sleep, locale);
+    var recommendation = CreateCorrectionRecommendation(
+        userId,
+        null,
+        reason,
+        corrected,
+        ExtractCurrentMacros(plan));
+
+
+    var saved = await _recommendationRepository.AddAsync(recommendation);
+    return new List<Recommendation> { saved };
+}
+
+
+У цьому методі я керую повним циклом аналізу. Спочатку я завантажую добовий план та перевіряю доступ користувача. Далі я отримую локаль, результати зміни активності та аналіз сну від відповідних сервісів. Після цього я передаю всі дані в CalculateCorrectedMacros. Я перевіряю наявність суттєвих змін через HasMeaningfulChange. Якщо корекція має сенс, я формую текст причини та зберігаю рекомендацію типу DietCorrection.
+Ключова логіка. CalculateCorrectedMacros
+
+
+public MacroNutrientsDto CalculateCorrectedMacros(
+    DailyDietPlan currentPlan,
+    ActivityChangeResult activity,
+    SleepQualityAnalysis sleep)
+{
+    var macros = ExtractCurrentMacros(currentPlan);
+
+
+    if (activity.StepsSpike ||
+        (activity.TrainingIntensityChangePercent.HasValue &&
+         activity.TrainingIntensityChangePercent.Value > TrainingIntensitySpikeThreshold))
+    {
+        macros = DietCorrectionHelper.AdjustMacrosForHighActivity(
+            macros,
+            HighActivityCarbIncrease,
+            HighActivityFatDecrease);
+
+
+        macros.Calories = DietCorrectionHelper.AdjustCaloriesForHighActivity(
+            macros.Calories,
+            HighActivityCaloriesIncreasePercent);
+    }
+    else if (activity.StepsChangePercent.HasValue &&
+             activity.StepsChangePercent.Value < LowStepsThreshold)
+    {
+        macros = DietCorrectionHelper.AdjustMacrosForLowActivity(
+            macros,
+            LowActivityCarbDecrease,
+            LowActivityProteinIncrease);
+
+
+        macros.Calories = DietCorrectionHelper.AdjustCaloriesForLowActivity(
+            macros.Calories,
+            LowActivityCaloriesDecreasePercent);
+    }
+
+
+    if (sleep.IsSleepDeprived)
+    {
+        macros = DietCorrectionHelper.AdjustMacrosForSleepDeprivation(
+            macros,
+            0.10m,
+            0.10m,
+            0m);
+    }
+
+
+    if (activity.HeartRateAnomaly)
+    {
+        macros = DietCorrectionHelper.AdjustForAbnormalHeartRate(
+            macros,
+            0.10m,
+            0.05m,
+            0.05m);
+    }
+
+
+    return macros;
+}
+
+
+У цьому методі я виконую послідовну корекцію макросів. Я починаю з поточних значень плану. Спочатку я аналізую фізичну активність. Якщо кількість кроків або інтенсивність тренувань зросли, я збільшую вуглеводи та калорії і зменшую жири. Якщо активність впала, я зменшую вуглеводи, збільшую білок та знижую калорійність. Після цього я враховую якість сну. За недосипу я коригую макроси у бік підтримки відновлення. Наприкінці я враховую аномалії пульсу. 
+Створення рекомендації
+
+
+public Recommendation CreateCorrectionRecommendation(
+    int userId,
+    int? mealId,
+    string reason,
+    MacroNutrientsDto suggestedMacros,
+    MacroNutrientsDto? currentMacros = null)
+{
+    var payload = JsonSerializer.Serialize(suggestedMacros);
+
+
+    return new Recommendation
+    {
+        MealInstanceId = mealId,
+        RecommendationCreatedAt = DateTime.UtcNow,
+        RecommendationType = RecommendationType.DietCorrection,
+        RecommendationPayload = payload,
+        RecommendationStatus = RecommendationStatus.New
+    };
+}
+
+
+У цьому методі я інкапсулюю скориговані макроси у JSON. Я зберігаю їх у RecommendationPayload. Користувач може погодитися з рекомендацією пізніше.
+Застосування корекції. ApplyCorrectionAsync
+
+
+plan.DailyPlanCalories = suggested.Calories;
+plan.DailyPlanProtein = suggested.ProteinGrams;
+plan.DailyPlanFat = suggested.FatGrams;
+plan.DailyPlanCarbs = suggested.CarbsGrams;
+plan.IsCorrected = true;
+
+
+Тут я оновлюю добовий план. Я замінюю старі значення на скориговані та фіксую факт корекції. Далі я оновлюю статус рекомендації. Після цього я запускаю перебалансування меню.
+Перебалансування прийомів їжі. RebalanceMealsAsync
+var ratioCalories = newTotals.Calories / oldTotals.Calories;
+meal.MealTargetProtein = Math.Round(protein, 1);
+meal.MealTargetFat = Math.Round(fat, 1);
+meal.MealTargetCarbs = Math.Round(carbs, 1);
+meal.MealTargetCalories = Math.Round(calories, 1);
+
+
+У цьому методі я масштабую кожен прийом їжі пропорційно новим добовим цілям, тобто я працюю з коефіцієнтами. Далі я перераховую порції рецептів. Для кожного рецепта я визначаю нову калорійність та будую оновлені метадані порцій. Таким чином користувач отримує меню, яке відповідає новим цілям
+3.2.4 Перегляд денних і тижневих показників
+У цьому функціональному модулі я реалізувала перегляд денних і тижневих показників користувача для того, щоб можна було отримати показники активності, тренувань і сну. Основним сервісом, який я створив, є StatisticsService (див. Додаток Б, Б12), Метод GetDailyStatisticsAsync приймає userId і дату і збирає всі доступні телеметричні дані цього дня. Для кроків я підсумовую всі записи типу Steps у межах дати. Для пульсу обчислюю середнє, мінімальне і максимальне значення, а також кількість вибірок, при цьому, якщо даних немає, результат повертаю як null. Дані сну аналізую, сумуючи тривалість фаз сну і обчислюючи середню якість тільки по тих записах, де значення існують. Тренування аналізую за кількістю сесій, сумарною тривалістю, витратами калорій і середньою інтенсивністю, яку перетворюю з enum у decimal для точності. Null значення ігнорую, щоб не спотворювати результати.
+Результатом роботи методу є об’єкт DailyStatisticsDto, який містить агреговані дані по кроках і пульсу (TelemetryAggregateDto), по сну (SleepAggregateDto) і по тренуваннях (TrainingAggregateDto). 
+
+
+   public async Task<DailyStatisticsDto> GetDailyStatisticsAsync(int userId, DateTime date)
+   {
+       var day = date.Date;
+       var devices = await _deviceRepository.FindAsync(d => d.UserId == userId);
+       var deviceIds = devices.Select(d => d.DeviceId).ToList();
+       if (!deviceIds.Any())
+       {
+           return new DailyStatisticsDto();
+       }
+
+
+       var telemetry = await AggregateTelemetryForDay(deviceIds, day);
+       var sleep = await AggregateSleepForDay(deviceIds, day);
+       var training = await AggregateTrainingsForDay(deviceIds, day);
+
+
+       return new DailyStatisticsDto
+       {
+           Steps = telemetry.Steps,
+           HeartRateAvg = telemetry.HeartRateAvg,
+           HeartRateMin = telemetry.HeartRateMin,
+           HeartRateMax = telemetry.HeartRateMax,
+           HeartRateSamples = telemetry.HeartRateSamples,
+
+
+           TotalSleepMinutes = sleep.TotalSleepMinutes,
+           DeepSleepMinutes = sleep.DeepSleepMinutes,
+           LightSleepMinutes = sleep.LightSleepMinutes,
+           AwakeMinutes = sleep.AwakeMinutes,
+           SleepQualityAvg = sleep.SleepQualityAvg,
+
+
+           TrainingCount = training.TrainingCount,
+           TrainingDurationMinutes = training.TrainingDurationMinutes,
+           TrainingIntensityAvg = training.TrainingIntensityAvg,
+           TrainingCalories = training.TrainingCalories
+       };
+   }
+
+
+Для тижневої агрегації я створила метод GetWeeklyStatisticsAsync, який приймає userId і дату початку тижня. Я викликаю GetDailyStatisticsAsync для кожного з семи днів тижня і збираю результати в список. Потім підсумовую кроки, тривалість сну і калорії тренувань за тиждень, обчислюю середнє значення пульсу, якості сну та інтенсивності тренувань, пропускаючи null записи. Для оцінки трендів я порівнюю середнє значення перших трьох днів з останніми трьома днями, використовуючи формулу (avgLast3 - avgFirst3) / avgFirst3 * 100. Якщо початкове середнє дорівнює нулю або даних менше шести днів, тренд повертаю як null, щоб уникнути ділення на нуль. Результатом є WeeklyStatisticsDto, який містить список денних DTO, агреговані значення і тренди по основних показниках.
+    public async Task<WeeklyStatisticsDto> GetWeeklyStatisticsAsync(int userId, DateTime startDate)
+    {
+        var start = startDate.Date;
+        var end = start.AddDays(7);
+
+
+        var days = new List<DailyStatisticsDto>();
+        for (var day = start; day < end; day = day.AddDays(1))
+        {
+            days.Add(await GetDailyStatisticsAsync(userId, day));
+        }
+
+
+        var weekly = new WeeklyStatisticsDto
+        {
+            StartDate = start,
+            EndDate = end.AddDays(-1),
+            Days = days
+        };
+
+
+        weekly.TotalSteps = days.Sum(d => d.Steps);
+        weekly.HeartRateAvg = AverageNullable(days.Select(d => d.HeartRateAvg));
+        weekly.HeartRateMin = MinNullable(days.Select(d => d.HeartRateMin));
+        weekly.HeartRateMax = MaxNullable(days.Select(d => d.HeartRateMax));
+
+
+        weekly.TotalSleepMinutes = days.Sum(d => d.TotalSleepMinutes);
+        weekly.DeepSleepMinutes = days.Sum(d => d.DeepSleepMinutes);
+        weekly.LightSleepMinutes = days.Sum(d => d.LightSleepMinutes);
+        weekly.AwakeMinutes = days.Sum(d => d.AwakeMinutes);
+        weekly.SleepQualityAvg = AverageNullable(days.Select(d => d.SleepQualityAvg));
+
+
+        weekly.TrainingCount = days.Sum(d => d.TrainingCount);
+        weekly.TrainingDurationMinutes = days.Sum(d => d.TrainingDurationMinutes);
+        weekly.TrainingIntensityAvg = AverageNullable(days.Select(d => d.TrainingIntensityAvg));
+        weekly.TrainingCalories = days.Sum(d => d.TrainingCalories);
+
+
+        // Trends: compare first 3 days vs last 3 days of the week
+        weekly.StepsTrendPercent = CalculateTrend(days, d => d.Steps);
+        weekly.HeartRateAvgTrendPercent = CalculateTrend(days, d => d.HeartRateAvg ?? 0);
+        weekly.SleepMinutesTrendPercent = CalculateTrend(days, d => (decimal)d.TotalSleepMinutes);
+        weekly.TrainingDurationTrendPercent = CalculateTrend(days, d => (decimal)d.TrainingDurationMinutes);
+        weekly.TrainingCaloriesTrendPercent = CalculateTrend(days, d => d.TrainingCalories);
+
+
+        return weekly;
+    }
+Для порівняння двох тижнів я реалізував метод CompareWithPreviousWeek, який отримує показники поточного і попереднього тижня через GetWeeklyStatisticsAsync. Я розраховую відсоткові зміни для кроків, середнього пульсу, сумарного сну, тривалості і калорій тренувань, використовуючи захищений метод SafePercentChange, який повертає null, якщо дільник нульовий або обидва значення нульові. Результатом є WeekComparisonDto, який містить показники поточного і попереднього тижня разом із відсотковими змінами.
+    public async Task<WeekComparisonDto> CompareWithPreviousWeek(int userId, DateTime currentWeekStart)
+    {
+        var current = await GetWeeklyStatisticsAsync(userId, currentWeekStart);
+        var previousStart = currentWeekStart.Date.AddDays(-7);
+        var previous = await GetWeeklyStatisticsAsync(userId, previousStart);
+
+
+        return new WeekComparisonDto
+        {
+            CurrentWeek = current,
+            PreviousWeek = previous,
+            StepsChangePercent = ChangePercent(previous.TotalSteps, current.TotalSteps),
+            HeartRateAvgChangePercent = ChangePercent(previous.HeartRateAvg, current.HeartRateAvg),
+            TotalSleepChangePercent = ChangePercent(previous.TotalSleepMinutes, current.TotalSleepMinutes),
+            TrainingDurationChangePercent = ChangePercent(previous.TrainingDurationMinutes, current.TrainingDurationMinutes),
+            TrainingCaloriesChangePercent = ChangePercent(previous.TrainingCalories, current.TrainingCalories)
+        };
+    }
+
+
+3.2.5 Розробка функцій адміністрування серверної частини програмної системи
+Система адміністрування серверної частини програмної системи побудована на принципі ролей користувачів і контролю доступу через Basic Authentication. Вона підтримує два рівні доступу: Admin, який відповідає за контент і має обмежений доступ, та SuperAdmin, який є системним адміністратором і володіє повними правами. Кожен запит до адмін-ендпоінтів спочатку проходить через механізм автентифікації BasicAuthenticationHandler, що розташований у сервісі BasicAuthenticationHandler (див. Додаток Б, Б 13)
+При отриманні HTTP-запиту система перевіряє наявність заголовка Authorization. Якщо заголовок відсутній, автентифікація не виконується. Якщо він присутній, заголовок парситься, декодується base64 рядок у форматі email:password і перевіряється коректність формату. Далі через IUserRepository.GetByEmailAsync(email) шукається користувач у базі даних. Якщо користувач знайдений, пароль хешується за алгоритмом SHA256, формуються два формати хешу – Base64 та Hex – для сумісності з різними версіями БД, і порівнюється з даними в базі. В результаті формується набір claims: ID користувача, email, роль, локаль. Локаль нормалізується у стандартні формати uk-UA або en-US. Всі етапи автентифікації та помилки логуються, при цьому паролі маскуються для безпеки.
+У Program.cs конфігурується схема автентифікації через AddAuthentication і AddScheme<AuthenticationSchemeOptions,BasicAuthenticationHandler>, реєструється авторизація AddAuthorization(), та налаштовується middleware pipeline з UseAuthentication() і UseAuthorization(). Для Swagger UI додана підтримка введення credentials, щоб адміністратор міг тестувати ендпоінти.
+
+
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "FitnessProject API", Version = "v1" });
+                c.AddSecurityDefinition("basic", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                    Scheme = "basic",
+                    In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                    Description = "Basic auth header"
+                });
+                c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                {
+                    {
+                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        {
+                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                            {
+                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                                Id = "basic"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
+
+
+Адміністраторські ролі визначені у UserRole.cs. Роль Admin має доступ до перегляду даних і GET-операцій, а SuperAdmin має повний доступ, включаючи CRUD-операції. Для всіх контролерів застосовується [Authorize(Roles = "...")]
+Функції Admin реалізовані у відповідних контролерах, таких як AdminProductsController, AdminRecipesController, AdminUsersController, AdminDevicesController, DailyDietPlansController і AdminOverviewController. Вони дозволяють переглядати продукти, рецепти, користувачів, підключені пристрої та плани дієт, а також отримувати системну інформацію про версію збірки, хеш коміту, базу даних, останню міграцію, час роботи та запуск сервера. 
+Для SuperAdmin реалізовані розширені можливості, включаючи створення, редагування і видалення продуктів, рецептів та планів дієт. Система також включає управління локалізацією через LocalizationAdminService (див. Додаток Б, Б 14). SuperAdmin може отримувати всі ключі локалізації для конкретної культури, знаходити відсутні ключі, оновлювати їх, імпортувати та експортувати. Локалізація здійснюється через .resx файли, які парсяться за допомогою XDocument. Для запитів застосовується нормалізація культури, і підтримуються uk та en.
+Таким чином, система адміністрування забезпечує безпечний і гнучкий контроль над усім контентом і налаштуваннями, з розділенням прав доступу, локалізацією повідомлень, конвертацією одиниць, керуванням ресурсами локалізації та інтеграцією з модулями генерації планів і корекції дієт.
+3.2.6 Тестування
+Тестування серверної частини програмної системи проводилось комплексно з використанням як автоматизованих, так і ручних підходів. Для unit-тестів застосовувався фреймворк xUnit, що дозволяє виконувати асинхронні тести та інтегрується з .NET середовищем. З метою ізоляції тестованої логіки від зовнішніх залежностей використовувався Moq – створювались mock-репозиторії та mock-сервіси, завдяки чому можна було протестувати бізнес-логіку незалежно від реальної бази даних або зовнішніх сервісів. Для тестування роботи з базою даних застосовувалась In-Memory Database , що забезпечує швидке виконання тестів без потреби підключення до реальної БД.
+Покриття тестами охоплює ключові модулі системи. StatisticsService перевіряє правильність агрегації даних телеметрії, тренувань та сну як за день, так і за тиждень, включно з обробкою edge cases, наприклад, відсутності даних або ділення на нуль. MealPlanGeneratorService тестувався на коректність розрахунку калорій та макронутрієнтів, фільтрації продуктів за дієтичними обмеженнями, виборі рецептів з урахуванням толерантності та обмежень повторів, а також створенні коректних сутностей Meal та MealRecipe. DietCorrectionService, разом із сервісами моніторингу активності та аналізу сну, перевіряв правильність розрахунку корекцій, балансування прийомів їжі та адаптацію макронутрієнтів. Модулі фільтрації продуктів і парсингу медичних обмежень також тестувалися на обробку різноманітних комбінацій обмежень та некоректних даних.
+Мануальне тестування проводилося через Swagger UI, що дозволило перевірити реальний цикл запитів, включно з автентифікацією та авторизацією. Тестувались всі адмін-ендпоінти з різними ролями (Admin, SuperAdmin), CRUD-операції для продуктів, рецептів та планів дієт, а також функції управління локалізацією. Було використано тестові дані: користувачі з різними ролями, заповнена база продуктів та рецептів, профілі з різними дієтичними та медичними обмеженнями.
+Підхід до тестування включав написання unit-тестів із моками для ізоляції логіки, покриття як стандартних сценаріїв (happy path), так і edge cases, перевірку правильності розрахунків та алгоритмів, а також тестування обробки помилок та валідації даних. Інтеграційне тестування виконувалося мануально через Swagger UI, що дозволило перевірити повний цикл запитів від автентифікації до виконання бізнес-операцій та коректну взаємодію між сервісами.
+ 
+________________
+ВИСНОВКИ
+Розробка бізнес-логіки серверної частини програмної системи дозволила створити алгоритми, які забезпечують коректну обробку запитів від клієнтів та виконання специфічних правил роботи системи. Було реалізовано операції з основними сутностями, такими як користувачі, продукти, рецепти, плани дієт, пристрої, а також забезпечено їх агрегацію, перевірку коректності даних і локалізацію результатів. 
+Розроблені функції адміністрування серверної частини дозволяють ефективно управляти користувачами, контролювати доступ до даних і ресурсів, здійснювати моніторинг активності системи, контролювати версію збірки та стан бази даних, а також управляти локалізацією. 
+Тестування показало коректну роботу всіх компонентів: запити Admin та SuperAdmin обробляються правильно, операції CRUD виконуються без порушення цілісності даних, бізнес-логіка і функції адміністрування взаємодіють із клієнтами та базою даних відповідно до специфікацій.
+Таким чином, поставлені завдання виконані повністю: бізнес-логіка працює коректно, функції адміністрування забезпечують безпеку та контроль, а серверна частина інтегрована з клієнтською частиною і базою даних, готова до використання у реальних умовах.
+________________
+ДОДАТОК А
+Відеозапис
+Відеозапис доповіді: https://youtu.be/FYpWB3uZesA
+Хронологічний опис відеозапису:
+00:00 - Представлення
+00:16 - Збір даних з фітнес-браслета
+01:08 - Формування персонального харчового плану
+02:48 - Фільтрація заборонених продуктів і рецептів
+03:10 - Генерація денного плану харчування
+04:10 - Корекція раціону на основі динамічних даних
+04:30 - Правила корекції (DietCorrectionHelper)
+06:04 - Розрахунок скоригованих таргетів
+06:40 - Перегляд денних і тижневих показників
+07:26 - Розробка функцій адміністрування серверної частини програмної системи
+08:35 - Тестування програмної системи
+08:58 - Практична частина
+09:04 - Збір даних телеметрії
+09:58 - Генерація денного плану харчування
+10:51 - Адміністративна панель
+11:55 - Дякую за увагу!
+________________
+
+
+ДОДАТОК Б
+Програмний код
+Б1 Програмний код  контролера TelemetryController 
+[ApiController]
+[Route("api/telemetry")]
+public class TelemetryController : ControllerBase
+{
+    private readonly ITelemetryProcessingService _telemetryProcessingService;
+    private readonly IStringLocalizer<SharedResources> _localizer;
+
+
+    public TelemetryController(ITelemetryProcessingService telemetryProcessingService, IStringLocalizer<SharedResources> localizer)
+    {
+        _telemetryProcessingService = telemetryProcessingService;
+        _localizer = localizer;
+    }
+
+
+    [HttpPost("receive")]
+    public async Task<IActionResult> ReceiveTelemetry([FromBody] TelemetryReceiveDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+
+        try
+        {
+            await _telemetryProcessingService.ProcessTelemetryAsync(dto);
+            return Ok(new { message = _localizer["Telemetry.ReceiveSuccess"] });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = _localizer["Errors.BadRequest"], details = ex.Message });
+        }
+    }
+
+
+    [HttpPost("receive/batch")]
+    public async Task<IActionResult> ReceiveTelemetryBatch([FromBody] TelemetryReceiveBatchDto batchDto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+
+        try
+        {
+            await _telemetryProcessingService.ProcessBatchAsync(batchDto);
+            return Ok(new { message = string.Format(_localizer["Telemetry.BatchSuccess"], batchDto.Items.Count) });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = _localizer["Errors.BadRequest"], details = ex.Message });
+        }
+    }
+}
+Б2 Програмний код  сервісної реалізації TelemetryProcessingService
+public class TelemetryProcessingService : ITelemetryProcessingService
+{
+    private readonly ITelemetrySampleRepository _telemetrySampleRepository;
+    private readonly ISleepRecordRepository _sleepRecordRepository;
+    private readonly IDeviceRepository _deviceRepository;
+    private readonly ApplicationDbContext _context;
+
+
+    public TelemetryProcessingService(
+        ITelemetrySampleRepository telemetrySampleRepository,
+        ISleepRecordRepository sleepRecordRepository,
+        IDeviceRepository deviceRepository,
+        ApplicationDbContext context)
+    {
+        _telemetrySampleRepository = telemetrySampleRepository;
+        _sleepRecordRepository = sleepRecordRepository;
+        _deviceRepository = deviceRepository;
+        _context = context;
+    }
+
+
+    public async Task ProcessTelemetryAsync(TelemetryReceiveDto dto)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        
+        try
+        {
+            var device = await _deviceRepository.GetByIdAsync(dto.DeviceId);
+            if (device == null)
+            {
+                throw new ArgumentException($"Device with ID {dto.DeviceId} not found");
+            }
+
+
+            device.LastSeen = DateTime.UtcNow;
+            await _deviceRepository.UpdateWithoutSaveAsync(device);
+
+
+            if (IsSleepData(dto))
+            {
+                await ProcessSleepDataAsync(dto, false);
+            }
+            else
+            {
+                await ProcessTelemetrySampleAsync(dto, false);
+            }
+
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+
+    public async Task ProcessBatchAsync(TelemetryReceiveBatchDto batchDto)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        
+        try
+        {
+            foreach (var item in batchDto.Items)
+            {
+                var device = await _deviceRepository.GetByIdAsync(item.DeviceId);
+                if (device == null)
+                {
+                    continue;
+                }
+
+
+                device.LastSeen = DateTime.UtcNow;
+                await _deviceRepository.UpdateWithoutSaveAsync(device);
+
+
+                if (IsSleepData(item))
+                {
+                    await ProcessSleepDataAsync(item, false);
+                }
+                else
+                {
+                    await ProcessTelemetrySampleAsync(item, false);
+                }
+            }
+
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+
+    private bool IsSleepData(TelemetryReceiveDto dto)
+    {
+        return dto.Metadata != null && 
+               (dto.Metadata.ContainsKey("TotalSleepMinutes") || 
+                dto.Metadata.ContainsKey("DeepSleepMinutes") ||
+                dto.Metadata.ContainsKey("LightSleepMinutes"));
+    }
+
+
+    private async Task ProcessTelemetrySampleAsync(TelemetryReceiveDto dto, bool saveChanges = true)
+    {
+        var (isValid, normalizedValue, errorMessage) = TelemetryNormalizer.NormalizeAndValidate(
+            dto.TelemetryType, 
+            dto.Value);
+
+
+        if (!isValid)
+        {
+            throw new ArgumentException(
+                $"Telemetry data validation failed. {errorMessage} " +
+                $"DeviceId: {dto.DeviceId}, Timestamp: {dto.Timestamp}, Type: {dto.TelemetryType}");
+        }
+
+
+        var existing = await CheckDuplicateTelemetrySampleAsync(
+            dto.DeviceId, 
+            dto.Timestamp, 
+            dto.TelemetryType);
+
+
+        if (existing != null)
+        {
+            existing.TelemetryValue = normalizedValue;
+            if (saveChanges)
+            {
+                await _telemetrySampleRepository.UpdateAsync(existing);
+            }
+            else
+            {
+                await _telemetrySampleRepository.UpdateWithoutSaveAsync(existing);
+            }
+            return;
+        }
+
+
+        var telemetrySample = new TelemetrySample
+        {
+            DeviceId = dto.DeviceId,
+            Timestamp = dto.Timestamp,
+            TelemetryType = dto.TelemetryType,
+            TelemetryValue = normalizedValue
+        };
+
+
+        if (saveChanges)
+        {
+            await _telemetrySampleRepository.AddAsync(telemetrySample);
+        }
+        else
+        {
+            await _telemetrySampleRepository.AddWithoutSaveAsync(telemetrySample);
+        }
+    }
+
+
+    private async Task ProcessSleepDataAsync(TelemetryReceiveDto dto, bool saveChanges = true)
+    {
+        if (dto.Metadata == null)
+        {
+            throw new ArgumentException("Sleep data requires metadata");
+        }
+
+
+        var (isValid, errorMessage) = TelemetryNormalizer.ValidateSleepData(dto.Metadata);
+        if (!isValid)
+        {
+            throw new ArgumentException(
+                $"Sleep data validation failed. {errorMessage} " +
+                $"DeviceId: {dto.DeviceId}, Timestamp: {dto.Timestamp}");
+        }
+
+
+        var date = dto.Timestamp.Date;
+        var totalSleepMinutes = TelemetryNormalizer.NormalizeSleepMinutes(
+            dto.Metadata.GetValueOrDefault("TotalSleepMinutes"));
+        var deepSleepMinutes = TelemetryNormalizer.NormalizeSleepMinutes(
+            dto.Metadata.GetValueOrDefault("DeepSleepMinutes"));
+        var lightSleepMinutes = TelemetryNormalizer.NormalizeSleepMinutes(
+            dto.Metadata.GetValueOrDefault("LightSleepMinutes"));
+        var awakeMinutes = TelemetryNormalizer.NormalizeSleepMinutes(
+            dto.Metadata.GetValueOrDefault("AwakeMinutes"));
+        var sleepQuality = TelemetryNormalizer.NormalizeSleepQuality(
+            dto.Metadata.GetValueOrDefault("SleepQuality"));
+
+
+        DateTime? startTime = null;
+        if (dto.Metadata.TryGetValue("StartTime", out var startTimeObj) && startTimeObj != null)
+        {
+            if (DateTime.TryParse(startTimeObj.ToString(), out var parsedStartTime))
+            {
+                startTime = parsedStartTime;
+            }
+        }
+
+
+        DateTime? endTime = null;
+        if (dto.Metadata.TryGetValue("EndTime", out var endTimeObj) && endTimeObj != null)
+        {
+            if (DateTime.TryParse(endTimeObj.ToString(), out var parsedEndTime))
+            {
+                endTime = parsedEndTime;
+            }
+        }
+
+
+        var existing = await CheckDuplicateSleepRecordAsync(dto.DeviceId, date);
+
+
+        if (existing != null)
+        {
+            existing.TotalSleepMinutes = totalSleepMinutes;
+            existing.DeepSleepMinutes = deepSleepMinutes;
+            existing.LightSleepMinutes = lightSleepMinutes;
+            existing.AwakeMinutes = awakeMinutes;
+            existing.SleepQuality = sleepQuality;
+            existing.StartTime = startTime;
+            existing.EndTime = endTime;
+            if (saveChanges)
+            {
+                await _sleepRecordRepository.UpdateAsync(existing);
+            }
+            else
+            {
+                await _sleepRecordRepository.UpdateWithoutSaveAsync(existing);
+            }
+            return;
+        }
+
+
+        var sleepRecord = new SleepRecord
+        {
+            DeviceId = dto.DeviceId,
+            Date = date,
+            TotalSleepMinutes = totalSleepMinutes,
+            DeepSleepMinutes = deepSleepMinutes,
+            LightSleepMinutes = lightSleepMinutes,
+            AwakeMinutes = awakeMinutes,
+            SleepQuality = sleepQuality,
+            StartTime = startTime,
+            EndTime = endTime
+        };
+
+
+        if (saveChanges)
+        {
+            await _sleepRecordRepository.AddAsync(sleepRecord);
+        }
+        else
+        {
+            await _sleepRecordRepository.AddWithoutSaveAsync(sleepRecord);
+        }
+    }
+
+
+    private async Task<TelemetrySample?> CheckDuplicateTelemetrySampleAsync(
+        int deviceId, 
+        DateTime timestamp, 
+        TelemetryType telemetryType)
+    {
+        var existing = await _telemetrySampleRepository.FindAsync(t =>
+            t.DeviceId == deviceId &&
+            t.Timestamp == timestamp &&
+            t.TelemetryType == telemetryType);
+
+
+        return existing.FirstOrDefault();
+    }
+
+
+    private async Task<SleepRecord?> CheckDuplicateSleepRecordAsync(
+        int deviceId, 
+        DateTime date)
+    {
+        var existing = await _sleepRecordRepository.FindAsync(s =>
+            s.DeviceId == deviceId &&
+            s.Date.Date == date.Date);
+
+
+        return existing.FirstOrDefault();
+    }
+}
+Б3 Програмний код  сервісної реалізації TelemetrySampleService 
+public class TelemetrySampleService : ITelemetrySampleService
+{
+    private readonly ITelemetrySampleRepository _repository;
+    private readonly IMapper _mapper;
+
+
+    public TelemetrySampleService(ITelemetrySampleRepository repository, IMapper mapper)
+    {
+        _repository = repository;
+        _mapper = mapper;
+    }
+
+
+    public async Task<TelemetrySampleResponseDto?> GetByIdAsync(int id)
+    {
+        var entity = await _repository.GetByIdAsync(id);
+        return entity == null ? null : _mapper.Map<TelemetrySampleResponseDto>(entity);
+    }
+
+
+    public async Task<TelemetrySampleDetailsDto?> GetTelemetrySampleDetailsByIdAsync(int id)
+    {
+        var entity = await _repository.GetTelemetrySampleDetailsByIdAsync(id);
+        return entity == null ? null : _mapper.Map<TelemetrySampleDetailsDto>(entity);
+    }
+
+
+    public async Task<IEnumerable<TelemetrySampleResponseDto>> GetAllAsync()
+    {
+        var entities = await _repository.GetAllAsync();
+        return _mapper.Map<IEnumerable<TelemetrySampleResponseDto>>(entities);
+    }
+
+
+    public async Task<TelemetrySampleResponseDto> CreateAsync(TelemetrySampleCreateDto createDto)
+    {
+        var entity = _mapper.Map<TelemetrySample>(createDto);
+        var created = await _repository.AddAsync(entity);
+        return _mapper.Map<TelemetrySampleResponseDto>(created);
+    }
+
+
+    public async Task<TelemetrySampleResponseDto> UpdateAsync(TelemetrySampleUpdateDto updateDto)
+    {
+        var entity = await _repository.GetByIdAsync(updateDto.SampleId);
+        if (entity == null)
+            throw new KeyNotFoundException($"TelemetrySample with ID {updateDto.SampleId} not found.");
+
+
+        _mapper.Map(updateDto, entity);
+        await _repository.UpdateAsync(entity);
+        return _mapper.Map<TelemetrySampleResponseDto>(entity);
+    }
+
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        if (!await _repository.ExistsAsync(id))
+            return false;
+
+
+        await _repository.DeleteAsync(id);
+        return true;
+    }
+
+
+    public async Task<bool> ExistsAsync(int id)
+    {
+        return await _repository.ExistsAsync(id);
+    }
+}
+Б4 Програмний код допоміжного класа-хелпера CalorieCalculator
+public static class CalorieCalculator
+{
+    private const decimal BMR_WEIGHT_MULTIPLIER = 10m;
+    private const decimal BMR_HEIGHT_MULTIPLIER = 6.25m;
+    private const decimal BMR_AGE_MULTIPLIER = 5m;
+    private const decimal BMR_MALE_CONSTANT = 5m;
+    private const decimal BMR_FEMALE_CONSTANT = 161m;
+    private const decimal BMR_OTHER_CONSTANT = 78m;
+
+
+    private const decimal TDEE_SEDENTARY = 1.2m;
+    private const decimal TDEE_LIGHTLY_ACTIVE = 1.375m;
+    private const decimal TDEE_MODERATELY_ACTIVE = 1.55m;
+    private const decimal TDEE_VERY_ACTIVE = 1.725m;
+    private const decimal TDEE_EXTREMELY_ACTIVE = 1.9m;
+
+
+    /**
+    Розрахунок бзового обміну речовин (BMR) за формулой Миффлина-Сан Жеора
+    Для чоловіків: BMR = (10 × вага в кг) + (6,25 × зріст в см) – (5 × вік) + 5;
+    для жінок: BMR = (10 × вага в кг) + (6,25 × зріст в см) – (5 × вік) – 161. 
+    */
+    public static decimal CalculateBMR(decimal weight, decimal height, int age, Sex sex)
+    {
+        var baseBMR = BMR_WEIGHT_MULTIPLIER * weight + BMR_HEIGHT_MULTIPLIER * height - BMR_AGE_MULTIPLIER * age;
+
+
+        return sex switch
+        {
+            Sex.Male => baseBMR + BMR_MALE_CONSTANT,
+            Sex.Female => baseBMR - BMR_FEMALE_CONSTANT,
+            _ => baseBMR - BMR_OTHER_CONSTANT
+        };
+    }
+
+
+    /**
+    Розрахунок загального щоденного енергетичного витрати (TDEE)
+    TDEE = BMR × коефіцієнт активності
+    */
+    public static decimal CalculateTDEE(decimal bmr, ActivityLevel activityLevel)
+    {
+        var multiplier = activityLevel switch
+        {
+            ActivityLevel.Sedentary => TDEE_SEDENTARY,
+            ActivityLevel.LightlyActive => TDEE_LIGHTLY_ACTIVE,
+            ActivityLevel.ModeratelyActive => TDEE_MODERATELY_ACTIVE,
+            ActivityLevel.VeryActive => TDEE_VERY_ACTIVE,
+            ActivityLevel.ExtremelyActive => TDEE_EXTREMELY_ACTIVE,
+            _ => TDEE_SEDENTARY
+        };
+
+
+        return bmr * multiplier;
+    }
+
+
+    /**
+    Розрахунок віку на основі дати народження
+    Визначає кількість повних років
+    */
+    public static int CalculateAge(DateTime? birthDate)
+    {
+        if (birthDate == null)
+        {
+            throw new ArgumentException("BirthDate is required to calculate age");
+        }
+
+
+        var today = DateTime.Today;
+        var age = today.Year - birthDate.Value.Year;
+
+
+        if (birthDate.Value.Date > today.AddYears(-age))
+        {
+            age--;
+        }
+
+
+        return age;
+    }
+}
+Б5 Програмний код  допоміжного класа-хелпера MacroNutrientsCalculator 
+public static class MacroNutrientsCalculator
+{
+    private const decimal CALORIES_PER_GRAM_PROTEIN = 4m;
+    private const decimal CALORIES_PER_GRAM_FAT = 9m;
+    private const decimal CALORIES_PER_GRAM_CARBS = 4m;
+
+
+    private const decimal PROTEIN_PERCENTAGE_MIN = 0.25m;
+    private const decimal PROTEIN_PERCENTAGE_MAX = 0.30m;
+    private const decimal PROTEIN_PERCENTAGE_AVG = 0.275m;
+    private const decimal FAT_PERCENTAGE_MIN = 0.25m;
+    private const decimal FAT_PERCENTAGE_MAX = 0.30m;
+    private const decimal FAT_PERCENTAGE_AVG = 0.275m;
+
+
+    private const decimal PROTEIN_PER_KG_MIN = 1.6m;
+    private const decimal PROTEIN_PER_KG_MAX = 2.2m;
+    private const decimal PROTEIN_PER_KG_AVG = 1.9m;
+    private const decimal FAT_PER_KG_MIN = 0.8m;
+    private const decimal FAT_PER_KG_MAX = 1.0m;
+    private const decimal FAT_PER_KG_AVG = 0.9m;
+
+
+    public static decimal CalculateCaloriesForWeightLoss(decimal tdee)
+    {
+        return tdee * 0.825m;
+    }
+
+
+    public static decimal CalculateCaloriesForWeightGain(decimal tdee)
+    {
+        return tdee * 1.125m;
+    }
+
+
+    public static decimal CalculateCaloriesForMaintenance(decimal tdee)
+    {
+        return tdee;
+    }
+
+
+    public static decimal CalculateCaloriesByGoal(decimal tdee, GoalType? goalType)
+    {
+        if (goalType == null)
+        {
+            return CalculateCaloriesForMaintenance(tdee);
+        }
+
+
+        return goalType switch
+        {
+            GoalType.WeightLoss => CalculateCaloriesForWeightLoss(tdee),
+            GoalType.WeightGain => CalculateCaloriesForWeightGain(tdee),
+            GoalType.WeightMaintenance => CalculateCaloriesForMaintenance(tdee),
+            GoalType.HealthCorrection => CalculateCaloriesForMaintenance(tdee),
+            _ => CalculateCaloriesForMaintenance(tdee)
+        };
+    }
+
+
+    public static MacroNutrientsDto CalculateMacros(decimal calories, decimal weight, GoalType? goalType)
+    {
+        var proteinGrams = CalculateProteinGrams(calories, weight, goalType);
+        var fatGrams = CalculateFatGrams(calories, weight, goalType);
+        var carbsGrams = CalculateCarbsGrams(calories, proteinGrams, fatGrams);
+
+
+        return new MacroNutrientsDto
+        {
+            Calories = calories,
+            ProteinGrams = Math.Round(proteinGrams, 1),
+            FatGrams = Math.Round(fatGrams, 1),
+            CarbsGrams = Math.Round(carbsGrams, 1)
+        };
+    }
+
+
+    private static decimal CalculateProteinGrams(decimal calories, decimal weight, GoalType? goalType)
+    {
+        var proteinFromWeight = weight * PROTEIN_PER_KG_AVG;
+        var proteinFromCalories = (calories * PROTEIN_PERCENTAGE_AVG) / CALORIES_PER_GRAM_PROTEIN;
+
+
+        return Math.Max(proteinFromWeight, proteinFromCalories);
+    }
+
+
+    private static decimal CalculateFatGrams(decimal calories, decimal weight, GoalType? goalType)
+    {
+        var fatFromWeight = weight * FAT_PER_KG_AVG;
+        var fatFromCalories = (calories * FAT_PERCENTAGE_AVG) / CALORIES_PER_GRAM_FAT;
+
+
+        return Math.Max(fatFromWeight, fatFromCalories);
+    }
+
+
+    private static decimal CalculateCarbsGrams(decimal calories, decimal proteinGrams, decimal fatGrams)
+    {
+        var proteinCalories = proteinGrams * CALORIES_PER_GRAM_PROTEIN;
+        var fatCalories = fatGrams * CALORIES_PER_GRAM_FAT;
+        var carbsCalories = calories - proteinCalories - fatCalories;
+
+
+        if (carbsCalories < 0)
+        {
+            return 0;
+        }
+
+
+        return carbsCalories / CALORIES_PER_GRAM_CARBS;
+    }
+}
+Б6 Програмний код  сервіса MealPlanGeneratorService
+public class MealPlanGeneratorService : IMealPlanGeneratorService
+{
+    private readonly IUserProfileRepository _userProfileRepository;
+    private readonly IRecipeRepository _recipeRepository;
+    private readonly IProductRepository _productRepository;
+    private readonly IDailyDietPlanRepository _dailyDietPlanRepository;
+    private readonly IMealRepository _mealRepository;
+    private readonly IMealRecipeRepository _mealRecipeRepository;
+
+
+    private const decimal BREAKFAST_CALORIE_PERCENTAGE = 0.275m;
+    private const decimal LUNCH_CALORIE_PERCENTAGE = 0.325m;
+    private const decimal DINNER_CALORIE_PERCENTAGE = 0.275m;
+    private const decimal SNACK_CALORIE_PERCENTAGE = 0.125m;
+
+
+    private const int RECENT_DAYS_TO_EXCLUDE = 7;
+    private const decimal CALORIE_TOLERANCE = 0.15m;
+    private const decimal MACRO_TOLERANCE = 0.20m;
+    private const int MAX_RECIPE_USAGE_PER_DAY = 1;
+
+
+    public MealPlanGeneratorService(
+        IUserProfileRepository userProfileRepository,
+        IRecipeRepository recipeRepository,
+        IProductRepository productRepository,
+        IDailyDietPlanRepository dailyDietPlanRepository,
+        IMealRepository mealRepository,
+        IMealRecipeRepository mealRecipeRepository)
+    {
+        _userProfileRepository = userProfileRepository;
+        _recipeRepository = recipeRepository;
+        _productRepository = productRepository;
+        _dailyDietPlanRepository = dailyDietPlanRepository;
+        _mealRepository = mealRepository;
+        _mealRecipeRepository = mealRecipeRepository;
+    }
+
+
+    public async Task<DailyDietPlan> GenerateMealPlanAsync(int userId, DateTime date, int? templateDietPlanId = null)
+    {
+        var userProfile = await _userProfileRepository.FindAsync(up => up.UserId == userId);
+        var profile = userProfile.FirstOrDefault();
+        
+        if (profile == null)
+        {
+            throw new ArgumentException($"UserProfile for UserId {userId} not found");
+        }
+
+
+        var age = CalorieCalculator.CalculateAge(profile.BirthDate);
+        var bmr = CalorieCalculator.CalculateBMR(profile.CurrentWeightKg, profile.HeightCm, age, profile.Sex);
+        var tdee = CalorieCalculator.CalculateTDEE(bmr, profile.ActivityLevel);
+        var targetCalories = MacroNutrientsCalculator.CalculateCaloriesByGoal(tdee, profile.GoalType);
+        var dailyMacros = MacroNutrientsCalculator.CalculateMacros(targetCalories, profile.CurrentWeightKg, profile.GoalType);
+
+
+        var caloriesByMealTime = DistributeCaloriesByMealTime(dailyMacros.Calories);
+        var macrosByMealTime = BalanceMacrosForMeals(caloriesByMealTime, dailyMacros);
+
+
+        var restrictions = MedicalRestrictionsParser.ParseMedicalConditions(profile.MedicalConditions);
+        var allProducts = await _productRepository.GetAllAsync();
+        var allowedProducts = ProductFilterHelper.FilterProductsByRestrictions(allProducts, restrictions).ToList();
+        var allowedProductIds = allowedProducts.Select(p => p.ProductId).ToHashSet();
+
+
+        var recentlyUsedRecipeIds = await GetRecentlyUsedRecipes(userId, date, RECENT_DAYS_TO_EXCLUDE);
+
+
+        var mealsByTime = new Dictionary<MealTime, List<Recipe>>();
+        var recipeUsageCount = new Dictionary<int, int>();
+
+
+        foreach (var mealTime in new[] { MealTime.Breakfast, MealTime.Lunch, MealTime.Dinner, MealTime.Snack })
+        {
+            var mealCalories = caloriesByMealTime[mealTime];
+            var mealMacros = macrosByMealTime[mealTime];
+            
+            var recipes = await SelectRecipesForMeal(
+                mealCalories, 
+                mealMacros, 
+                allowedProductIds, 
+                recentlyUsedRecipeIds,
+                recipeUsageCount);
+            
+            mealsByTime[mealTime] = recipes;
+        }
+
+
+        var dailyDietPlan = new DailyDietPlan
+        {
+            UserId = userId,
+            DailyDietPlanName = $"Meal Plan for {date:yyyy-MM-dd}",
+            DailyPlanCalories = dailyMacros.Calories,
+            DailyPlanFat = dailyMacros.FatGrams,
+            DailyPlanCarbs = dailyMacros.CarbsGrams,
+            DailyPlanProtein = dailyMacros.ProteinGrams,
+            DailyPlanNumberOfMeals = mealsByTime.Values.Sum(r => r.Count),
+            DailyPlanStatus = DailyPlanStatus.Planned,
+            DailyPlanCreatedAt = DateTime.UtcNow
+        };
+
+
+        var savedPlan = await _dailyDietPlanRepository.AddAsync(dailyDietPlan);
+
+
+        await CreateMealsForPlanAsync(savedPlan, mealsByTime, macrosByMealTime);
+
+
+        return savedPlan;
+    }
+
+
+    private Dictionary<MealTime, decimal> DistributeCaloriesByMealTime(decimal totalCalories)
+    {
+        return new Dictionary<MealTime, decimal>
+        {
+            { MealTime.Breakfast, Math.Round(totalCalories * BREAKFAST_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Lunch, Math.Round(totalCalories * LUNCH_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Dinner, Math.Round(totalCalories * DINNER_CALORIE_PERCENTAGE, 1) },
+            { MealTime.Snack, Math.Round(totalCalories * SNACK_CALORIE_PERCENTAGE, 1) }
+        };
+    }
+
+
+    private Dictionary<MealTime, MacroNutrientsDto> BalanceMacrosForMeals(
+        Dictionary<MealTime, decimal> caloriesByMealTime, 
+        MacroNutrientsDto dailyMacros)
+    {
+        var macrosByMealTime = new Dictionary<MealTime, MacroNutrientsDto>();
+
+
+        foreach (var (mealTime, mealCalories) in caloriesByMealTime)
+        {
+            var calorieRatio = mealCalories / dailyMacros.Calories;
+            
+            macrosByMealTime[mealTime] = new MacroNutrientsDto
+            {
+                Calories = mealCalories,
+                ProteinGrams = Math.Round(dailyMacros.ProteinGrams * calorieRatio, 1),
+                FatGrams = Math.Round(dailyMacros.FatGrams * calorieRatio, 1),
+                CarbsGrams = Math.Round(dailyMacros.CarbsGrams * calorieRatio, 1)
+            };
+        }
+
+
+        return macrosByMealTime;
+    }
+
+
+    private async Task<List<int>> GetRecentlyUsedRecipes(int userId, DateTime date, int days)
+    {
+        var startDate = date.AddDays(-days);
+        
+        var recentPlans = await _dailyDietPlanRepository.FindAsync(ddp => 
+            ddp.UserId == userId && 
+            ddp.DailyPlanCreatedAt >= startDate && 
+            ddp.DailyPlanCreatedAt < date);
+
+
+        var recipeIds = new HashSet<int>();
+
+
+        foreach (var plan in recentPlans)
+        {
+            var planDetails = await _dailyDietPlanRepository.GetDailyDietPlanDetailsByIdAsync(plan.DailyDietPlanId);
+            if (planDetails?.Meals != null)
+            {
+                foreach (var meal in planDetails.Meals)
+                {
+                    var mealDetails = await _mealRepository.GetMealDetailsByIdAsync(meal.MealId);
+                    if (mealDetails?.MealRecipes != null)
+                    {
+                        foreach (var mealRecipe in mealDetails.MealRecipes)
+                        {
+                            recipeIds.Add(mealRecipe.RecipeId);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        return recipeIds.ToList();
+    }
+
+
+    private async Task<List<Recipe>> SelectRecipesForMeal(
+        decimal targetCalories,
+        MacroNutrientsDto targetMacros,
+        HashSet<int> allowedProductIds,
+        List<int> excludedRecipeIds,
+        Dictionary<int, int> recipeUsageCount)
+    {
+        var allRecipes = await _recipeRepository.GetAllAsync();
+        
+        var availableRecipes = allRecipes
+            .Where(r => !excludedRecipeIds.Contains(r.RecipeId))
+            .ToList();
+
+
+        var recipesWithProducts = new List<(Recipe recipe, bool hasAllowedProducts)>();
+
+
+        foreach (var recipe in availableRecipes)
+        {
+            var recipeDetails = await _recipeRepository.GetRecipeDetailsByIdAsync(recipe.RecipeId);
+            if (recipeDetails?.RecipeProducts != null)
+            {
+                var hasAllowedProducts = recipeDetails.RecipeProducts
+                    .All(rp => allowedProductIds.Contains(rp.ProductId));
+                
+                recipesWithProducts.Add((recipe, hasAllowedProducts));
+            }
+        }
+
+
+        var filteredRecipes = recipesWithProducts
+            .Where(r => r.hasAllowedProducts && CanUseRecipe(r.recipe, recipeUsageCount))
+            .Select(r => r.recipe)
+            .ToList();
+
+
+        var selectedRecipes = new List<Recipe>();
+        var currentCalories = 0m;
+        var currentProtein = 0m;
+        var currentFat = 0m;
+        var currentCarbs = 0m;
+
+
+        var sortedRecipes = filteredRecipes
+            .OrderBy(r => Math.Abs(r.RecipeCaloriesPerPortion - targetCalories))
+            .ToList();
+
+
+        foreach (var recipe in sortedRecipes)
+        {
+            if (!CanUseRecipe(recipe, recipeUsageCount))
+            {
+                continue;
+            }
+
+
+            var newCalories = currentCalories + recipe.RecipeCaloriesPerPortion;
+            var newProtein = currentProtein + recipe.RecipeProteinPerPortion;
+            var newFat = currentFat + recipe.RecipeFatPerPortion;
+            var newCarbs = currentCarbs + recipe.RecipeCarbsPerPortion;
+
+
+            if (newCalories <= targetCalories * (1 + CALORIE_TOLERANCE))
+            {
+                var caloriesDiff = Math.Abs(newCalories - targetCalories) / targetCalories;
+                var proteinDiff = Math.Abs(newProtein - targetMacros.ProteinGrams) / targetMacros.ProteinGrams;
+                var fatDiff = Math.Abs(newFat - targetMacros.FatGrams) / targetMacros.FatGrams;
+                var carbsDiff = Math.Abs(newCarbs - targetMacros.CarbsGrams) / targetMacros.CarbsGrams;
+
+
+                if (caloriesDiff <= CALORIE_TOLERANCE && 
+                    proteinDiff <= MACRO_TOLERANCE && 
+                    fatDiff <= MACRO_TOLERANCE && 
+                    carbsDiff <= MACRO_TOLERANCE)
+                {
+                    selectedRecipes.Add(recipe);
+                    IncrementUsage(recipe, recipeUsageCount);
+                    currentCalories = newCalories;
+                    currentProtein = newProtein;
+                    currentFat = newFat;
+                    currentCarbs = newCarbs;
+
+
+                    if (currentCalories >= targetCalories * (1 - CALORIE_TOLERANCE))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+
+        if (selectedRecipes.Count == 0 && filteredRecipes.Any())
+        {
+            var bestAllowed = sortedRecipes.FirstOrDefault(r => CanUseRecipe(r, recipeUsageCount));
+            var bestRecipe = bestAllowed ?? sortedRecipes.First();
+
+
+            if (CanUseRecipe(bestRecipe, recipeUsageCount))
+            {
+                selectedRecipes.Add(bestRecipe);
+                IncrementUsage(bestRecipe, recipeUsageCount);
+            }
+        }
+
+
+        return selectedRecipes;
+    }
+
+
+    private static bool CanUseRecipe(Recipe recipe, Dictionary<int, int> usage)
+    {
+        return !usage.TryGetValue(recipe.RecipeId, out var count) || count < MAX_RECIPE_USAGE_PER_DAY;
+    }
+
+
+    private static void IncrementUsage(Recipe recipe, Dictionary<int, int> usage)
+    {
+        if (usage.TryGetValue(recipe.RecipeId, out var count))
+        {
+            usage[recipe.RecipeId] = count + 1;
+        }
+        else
+        {
+            usage[recipe.RecipeId] = 1;
+        }
+    }
+
+
+    private async Task CreateMealsForPlanAsync(
+        DailyDietPlan plan,
+        Dictionary<MealTime, List<Recipe>> mealsByTime,
+        Dictionary<MealTime, MacroNutrientsDto> macrosByMealTime)
+    {
+        var mealOrder = 1;
+
+
+        foreach (var (mealTime, recipes) in mealsByTime.OrderBy(m => m.Key))
+        {
+            if (!recipes.Any())
+            {
+                continue;
+            }
+
+
+            var mealMacros = macrosByMealTime[mealTime];
+            var totalCalories = recipes.Sum(r => r.RecipeCaloriesPerPortion);
+            var totalProtein = recipes.Sum(r => r.RecipeProteinPerPortion);
+            var totalFat = recipes.Sum(r => r.RecipeFatPerPortion);
+            var totalCarbs = recipes.Sum(r => r.RecipeCarbsPerPortion);
+
+
+            var meal = new Meal
+            {
+                DailyDietPlanId = plan.DailyDietPlanId,
+                MealTime = mealTime,
+                MealOrder = mealOrder++,
+                MealTargetCalories = Math.Round(totalCalories, 1),
+                MealTargetProtein = Math.Round(totalProtein, 1),
+                MealTargetFat = Math.Round(totalFat, 1),
+                MealTargetCarbs = Math.Round(totalCarbs, 1)
+            };
+
+
+            var savedMeal = await _mealRepository.AddAsync(meal);
+
+
+            foreach (var recipe in recipes)
+            {
+                var recipeDetails = await _recipeRepository.GetRecipeDetailsByIdAsync(recipe.RecipeId);
+                var perRecipeTargetCalories = mealMacros.Calories / recipes.Count;
+                var portionMultiplier = PortionCalculator.CalculatePortionMultiplier(recipe, perRecipeTargetCalories);
+                var portionsMetadata = recipeDetails != null
+                    ? PortionCalculator.BuildPortionsMetadata(recipeDetails, portionMultiplier)
+                    : string.Empty;
+
+
+                var mealRecipe = new MealRecipe
+                {
+                    MealId = savedMeal.MealId,
+                    RecipeId = recipe.RecipeId,
+                    PortionsMetadata = portionsMetadata
+                };
+
+
+                await _mealRecipeRepository.AddAsync(mealRecipe);
+            }
+        }
+    }
+}
+Б 7 Програмний код  допоміжного класа-хелпер ProductFilterHelper
+public static class ProductFilterHelper
+{
+    public static IEnumerable<Product> FilterProductsByRestrictions(
+        IEnumerable<Product> products, 
+        UserMedicalRestrictionsDto restrictions,
+        bool includeAdvisory = true)
+    {
+        var filtered = products;
+
+
+        if (restrictions.Allergens.Any())
+        {
+            filtered = FilterProductsByAllergens(filtered, restrictions.Allergens);
+        }
+
+
+        if (restrictions.DietaryRestriction.HasValue && restrictions.DietaryRestriction.Value != DietaryRestrictionType.None)
+        {
+            filtered = FilterProductsByDietaryRestrictions(filtered, restrictions.DietaryRestriction.Value);
+        }
+
+
+        if (restrictions.MedicalConditions.Any())
+        {
+            filtered = FilterProductsByMedicalConditions(filtered, restrictions.MedicalConditions, includeAdvisory);
+        }
+
+
+        return filtered;
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByAllergens(
+        IEnumerable<Product> products, 
+        List<string> userAllergens)
+    {
+        if (userAllergens == null || !userAllergens.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => 
+            string.IsNullOrWhiteSpace(p.Allergens) || 
+            !userAllergens.Any(allergen => 
+                p.Allergens.Contains(allergen, StringComparison.OrdinalIgnoreCase)));
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByDietaryRestrictions(
+        IEnumerable<Product> products, 
+        DietaryRestrictionType restriction)
+    {
+        return restriction switch
+        {
+            DietaryRestrictionType.Vegetarian => FilterVegetarian(products),
+            DietaryRestrictionType.Vegan => FilterVegan(products),
+            DietaryRestrictionType.Pescatarian => FilterPescatarian(products),
+            DietaryRestrictionType.GlutenFree => FilterGlutenFree(products),
+            DietaryRestrictionType.LactoseFree => FilterLactoseFree(products),
+            DietaryRestrictionType.Halal => FilterHalal(products),
+            DietaryRestrictionType.Kosher => FilterKosher(products),
+            _ => products
+        };
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByMedicalConditions(
+        IEnumerable<Product> products, 
+        List<string> medicalConditions,
+        bool includeAdvisory = true)
+    {
+        if (medicalConditions == null || !medicalConditions.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => !ShouldExcludeByTags(p, medicalConditions, includeAdvisory));
+    }
+
+
+    private static IEnumerable<Product> FilterVegetarian(IEnumerable<Product> products)
+    {
+        var forbidden = ProductTags.Meat | ProductTags.Pork;
+        return products.Where(p => (p.Tags & forbidden) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterVegan(IEnumerable<Product> products)
+    {
+        var forbiddenTags = ProductTags.Meat | ProductTags.Pork | ProductTags.Fish | ProductTags.Shellfish | ProductTags.Dairy | ProductTags.Egg | ProductTags.Honey;
+        return products.Where(p => (p.Tags & forbiddenTags) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterPescatarian(IEnumerable<Product> products)
+    {
+        var forbidden = ProductTags.Meat | ProductTags.Pork;
+        return products.Where(p => (p.Tags & forbidden) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterGlutenFree(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Gluten) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterLactoseFree(IEnumerable<Product> products)
+    {
+        return products.Where(p =>
+        {
+            var hasDairy = (p.Tags & ProductTags.Dairy) != 0;
+            var isPlantMilk = (p.Tags & ProductTags.PlantMilk) != 0;
+            return !(hasDairy && !isPlantMilk);
+        });
+    }
+
+
+    private static IEnumerable<Product> FilterHalal(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Alcohol) == 0 && (p.Tags & ProductTags.Pork) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterKosher(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Pork) == 0 && (p.Tags & ProductTags.Shellfish) == 0);
+    }
+
+
+    private static bool ShouldExcludeByTags(Product p, List<string> medicalConditions, bool includeAdvisory)
+    {
+        if (p.Tags == ProductTags.None)
+        {
+            return false;
+        }
+
+
+        bool hasCondition(string name) => medicalConditions.Any(c => c.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+
+        if (hasCondition("Diabetes"))
+        {
+            if ((p.Tags & ProductTags.HighGI) != 0 || (p.Tags & ProductTags.Sugar) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("Hypertension"))
+        {
+            if ((p.Tags & ProductTags.HighSodium) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("KidneyDisease"))
+        {
+            if ((p.Tags & ProductTags.HighProtein) != 0 || (p.Tags & ProductTags.HighSodium) != 0)
+            {
+                return true;
+            }
+            if (includeAdvisory)
+            {
+                if ((p.Tags & ProductTags.Potassium) != 0 || (p.Tags & ProductTags.Phosphorus) != 0 || (p.Tags & ProductTags.Legume) != 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+
+        if (hasCondition("CeliacDisease"))
+        {
+            if ((p.Tags & ProductTags.Gluten) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("LactoseIntolerance"))
+        {
+            var hasDairy = (p.Tags & ProductTags.Dairy) != 0;
+            var isPlantMilk = (p.Tags & ProductTags.PlantMilk) != 0;
+            if (hasDairy && !isPlantMilk)
+            {
+                return true;
+            }
+        }
+
+
+        return false;
+    }
+
+
+}
+Б 7 Програмний код  допоміжного класа-хелпер ProductFilterHelper
+public static class ProductFilterHelper
+{
+    public static IEnumerable<Product> FilterProductsByRestrictions(
+        IEnumerable<Product> products, 
+        UserMedicalRestrictionsDto restrictions,
+        bool includeAdvisory = true)
+    {
+        var filtered = products;
+
+
+        if (restrictions.Allergens.Any())
+        {
+            filtered = FilterProductsByAllergens(filtered, restrictions.Allergens);
+        }
+
+
+        if (restrictions.DietaryRestriction.HasValue && restrictions.DietaryRestriction.Value != DietaryRestrictionType.None)
+        {
+            filtered = FilterProductsByDietaryRestrictions(filtered, restrictions.DietaryRestriction.Value);
+        }
+
+
+        if (restrictions.MedicalConditions.Any())
+        {
+            filtered = FilterProductsByMedicalConditions(filtered, restrictions.MedicalConditions, includeAdvisory);
+        }
+
+
+        return filtered;
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByAllergens(
+        IEnumerable<Product> products, 
+        List<string> userAllergens)
+    {
+        if (userAllergens == null || !userAllergens.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => 
+            string.IsNullOrWhiteSpace(p.Allergens) || 
+            !userAllergens.Any(allergen => 
+                p.Allergens.Contains(allergen, StringComparison.OrdinalIgnoreCase)));
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByDietaryRestrictions(
+        IEnumerable<Product> products, 
+        DietaryRestrictionType restriction)
+    {
+        return restriction switch
+        {
+            DietaryRestrictionType.Vegetarian => FilterVegetarian(products),
+            DietaryRestrictionType.Vegan => FilterVegan(products),
+            DietaryRestrictionType.Pescatarian => FilterPescatarian(products),
+            DietaryRestrictionType.GlutenFree => FilterGlutenFree(products),
+            DietaryRestrictionType.LactoseFree => FilterLactoseFree(products),
+            DietaryRestrictionType.Halal => FilterHalal(products),
+            DietaryRestrictionType.Kosher => FilterKosher(products),
+            _ => products
+        };
+    }
+
+
+    public static IEnumerable<Product> FilterProductsByMedicalConditions(
+        IEnumerable<Product> products, 
+        List<string> medicalConditions,
+        bool includeAdvisory = true)
+    {
+        if (medicalConditions == null || !medicalConditions.Any())
+        {
+            return products;
+        }
+
+
+        return products.Where(p => !ShouldExcludeByTags(p, medicalConditions, includeAdvisory));
+    }
+
+
+    private static IEnumerable<Product> FilterVegetarian(IEnumerable<Product> products)
+    {
+        var forbidden = ProductTags.Meat | ProductTags.Pork;
+        return products.Where(p => (p.Tags & forbidden) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterVegan(IEnumerable<Product> products)
+    {
+        var forbiddenTags = ProductTags.Meat | ProductTags.Pork | ProductTags.Fish | ProductTags.Shellfish | ProductTags.Dairy | ProductTags.Egg | ProductTags.Honey;
+        return products.Where(p => (p.Tags & forbiddenTags) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterPescatarian(IEnumerable<Product> products)
+    {
+        var forbidden = ProductTags.Meat | ProductTags.Pork;
+        return products.Where(p => (p.Tags & forbidden) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterGlutenFree(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Gluten) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterLactoseFree(IEnumerable<Product> products)
+    {
+        return products.Where(p =>
+        {
+            var hasDairy = (p.Tags & ProductTags.Dairy) != 0;
+            var isPlantMilk = (p.Tags & ProductTags.PlantMilk) != 0;
+            return !(hasDairy && !isPlantMilk);
+        });
+    }
+
+
+    private static IEnumerable<Product> FilterHalal(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Alcohol) == 0 && (p.Tags & ProductTags.Pork) == 0);
+    }
+
+
+    private static IEnumerable<Product> FilterKosher(IEnumerable<Product> products)
+    {
+        return products.Where(p => (p.Tags & ProductTags.Pork) == 0 && (p.Tags & ProductTags.Shellfish) == 0);
+    }
+
+
+    private static bool ShouldExcludeByTags(Product p, List<string> medicalConditions, bool includeAdvisory)
+    {
+        if (p.Tags == ProductTags.None)
+        {
+            return false;
+        }
+
+
+        bool hasCondition(string name) => medicalConditions.Any(c => c.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+
+        if (hasCondition("Diabetes"))
+        {
+            if ((p.Tags & ProductTags.HighGI) != 0 || (p.Tags & ProductTags.Sugar) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("Hypertension"))
+        {
+            if ((p.Tags & ProductTags.HighSodium) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("KidneyDisease"))
+        {
+            if ((p.Tags & ProductTags.HighProtein) != 0 || (p.Tags & ProductTags.HighSodium) != 0)
+            {
+                return true;
+            }
+            if (includeAdvisory)
+            {
+                if ((p.Tags & ProductTags.Potassium) != 0 || (p.Tags & ProductTags.Phosphorus) != 0 || (p.Tags & ProductTags.Legume) != 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+
+        if (hasCondition("CeliacDisease"))
+        {
+            if ((p.Tags & ProductTags.Gluten) != 0)
+            {
+                return true;
+            }
+        }
+
+
+        if (hasCondition("LactoseIntolerance"))
+        {
+            var hasDairy = (p.Tags & ProductTags.Dairy) != 0;
+            var isPlantMilk = (p.Tags & ProductTags.PlantMilk) != 0;
+            if (hasDairy && !isPlantMilk)
+            {
+                return true;
+            }
+        }
+
+
+        return false;
+    }
+
+
+}
+Б 8 Програмний код  сервісу ActivityMonitorService
+public class ActivityMonitorService : IActivityMonitorService
+{
+    private readonly ApplicationDbContext _context;
+
+
+    public ActivityMonitorService(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+
+    public async Task<ActivityChangeResult> CheckActivityChangesAsync(int userId, DateTime date)
+    {
+        var day = date.Date;
+        var dayStart = day;
+        var dayEnd = day.AddDays(1);
+        var weekStart = day.AddDays(-7);
+
+
+        var deviceIds = await _context.Devices
+            .Where(d => d.UserId == userId)
+            .Select(d => d.DeviceId)
+            .ToListAsync();
+
+
+        if (!deviceIds.Any())
+        {
+            return new ActivityChangeResult();
+        }
+
+
+        var stepsToday = await _context.TelemetrySamples
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.TelemetryType == TelemetryType.Steps
+                         && ts.Timestamp >= dayStart
+                         && ts.Timestamp < dayEnd)
+            .SumAsync(ts => (decimal?)ts.TelemetryValue) ?? 0m;
+
+
+        var heartRateTodayList = await _context.TelemetrySamples
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.TelemetryType == TelemetryType.HeartRate
+                         && ts.Timestamp >= dayStart
+                         && ts.Timestamp < dayEnd)
+            .Select(ts => ts.TelemetryValue)
+            .ToListAsync();
+        var heartRateToday = heartRateTodayList.Any() ? heartRateTodayList.Average() : (decimal?)null;
+
+
+        var intensityTodayList = await _context.TrainingSessions
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.StartTime >= dayStart
+                         && ts.StartTime < dayEnd)
+            .Select(ts => (decimal?)ts.Intensity)
+            .ToListAsync();
+        var intensityToday = intensityTodayList.Any() ? intensityTodayList.Average() : (decimal?)null;
+
+
+        var weeklyStepsDaily = await _context.TelemetrySamples
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.TelemetryType == TelemetryType.Steps
+                         && ts.Timestamp >= weekStart
+                         && ts.Timestamp < dayStart)
+            .GroupBy(ts => ts.Timestamp.Date)
+            .Select(g => g.Sum(x => x.TelemetryValue))
+            .ToListAsync();
+
+
+        var weeklyHeartDaily = await _context.TelemetrySamples
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.TelemetryType == TelemetryType.HeartRate
+                         && ts.Timestamp >= weekStart
+                         && ts.Timestamp < dayStart)
+            .GroupBy(ts => ts.Timestamp.Date)
+            .Select(g => g.Average(x => x.TelemetryValue))
+            .ToListAsync();
+
+
+        var weeklyIntensityDaily = await _context.TrainingSessions
+            .Where(ts => deviceIds.Contains(ts.DeviceId)
+                         && ts.StartTime >= weekStart
+                         && ts.StartTime < dayStart)
+            .GroupBy(ts => ts.StartTime.Date)
+            .Select(g => g.Average(x => (decimal)x.Intensity))
+            .ToListAsync();
+
+
+        var weeklyAverage = new WeeklyActivityAverage
+        {
+            AverageSteps = weeklyStepsDaily.Any() ? weeklyStepsDaily.Average() : 0m,
+            AverageHeartRate = weeklyHeartDaily.Any() ? weeklyHeartDaily.Average() : null,
+            AverageTrainingIntensity = weeklyIntensityDaily.Any() ? weeklyIntensityDaily.Average() : null
+        };
+
+
+        var stepsChange = ComputeChangePercent(stepsToday, weeklyAverage.AverageSteps);
+        var hrChange = ComputeChangePercent(heartRateToday, weeklyAverage.AverageHeartRate);
+        var intensityChange = ComputeChangePercent(intensityToday, weeklyAverage.AverageTrainingIntensity);
+
+
+        var result = new ActivityChangeResult
+        {
+            WeeklyAverage = weeklyAverage,
+            StepsToday = stepsToday,
+            HeartRateToday = heartRateToday,
+            TrainingIntensityToday = intensityToday,
+            StepsChangePercent = stepsChange,
+            HeartRateChangePercent = hrChange,
+            TrainingIntensityChangePercent = intensityChange,
+            StepsSpike = stepsChange.HasValue && stepsChange.Value > ActivityThresholds.StepsSpikeThreshold,
+            TrainingIntensityChange = intensityChange.HasValue && Math.Abs(intensityChange.Value) > ActivityThresholds.TrainingIntensityChangeThreshold,
+            HeartRateAnomaly = heartRateToday.HasValue &&
+                               (heartRateToday < ActivityThresholds.RestHeartRateLow ||
+                                heartRateToday > ActivityThresholds.RestHeartRateHigh)
+        };
+
+
+        return result;
+    }
+
+
+    private static decimal? ComputeChangePercent(decimal? current, decimal? average)
+    {
+        if (!current.HasValue || !average.HasValue || average == 0)
+        {
+            return null;
+        }
+
+
+        return (current.Value - average.Value) / average.Value;
+    }
+}
+Б 9 Програмний код  сервісу DietCorrectionService
+public class DietCorrectionService : IDietCorrectionService
+{
+    private readonly IActivityMonitorService _activityMonitorService;
+    private readonly ISleepAnalysisService _sleepAnalysisService;
+    private readonly IDailyDietPlanRepository _dailyDietPlanRepository;
+    private readonly IRecommendationRepository _recommendationRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IMealRepository _mealRepository;
+    private readonly IMealRecipeRepository _mealRecipeRepository;
+    private readonly IRecipeRepository _recipeRepository;
+    private readonly IStringLocalizer<SharedResources> _localizer;
+    private readonly IUnitConversionService _unitConversionService;
+
+
+    private const decimal HighActivityCarbIncrease = 0.10m;
+    private const decimal HighActivityFatDecrease = 0.05m;
+    private const decimal HighActivityCaloriesIncreasePercent = 10m;
+
+
+    private const decimal LowActivityCarbDecrease = 0.10m;
+    private const decimal LowActivityProteinIncrease = 0.10m;
+    private const decimal LowActivityCaloriesDecreasePercent = 5m;
+
+
+    private const decimal TrainingIntensitySpikeThreshold = 0.20m; // 20%
+    private const decimal LowStepsThreshold = -0.30m; // -30%
+
+
+    public DietCorrectionService(
+        IActivityMonitorService activityMonitorService,
+        ISleepAnalysisService sleepAnalysisService,
+        IDailyDietPlanRepository dailyDietPlanRepository,
+        IRecommendationRepository recommendationRepository,
+        IUserRepository userRepository,
+        IMealRepository mealRepository,
+        IMealRecipeRepository mealRecipeRepository,
+        IRecipeRepository recipeRepository,
+        IStringLocalizer<SharedResources> localizer,
+        IUnitConversionService unitConversionService)
+    {
+        _activityMonitorService = activityMonitorService;
+        _sleepAnalysisService = sleepAnalysisService;
+        _dailyDietPlanRepository = dailyDietPlanRepository;
+        _recommendationRepository = recommendationRepository;
+        _userRepository = userRepository;
+        _mealRepository = mealRepository;
+        _mealRecipeRepository = mealRecipeRepository;
+        _recipeRepository = recipeRepository;
+        _localizer = localizer;
+        _unitConversionService = unitConversionService;
+    }
+
+
+    public async Task<List<Recommendation>> CheckAndSuggestCorrectionsAsync(int userId, int dailyDietPlanId)
+    {
+        var plan = await _dailyDietPlanRepository.GetDailyDietPlanDetailsByIdAsync(dailyDietPlanId);
+        if (plan == null || plan.UserId != userId)
+        {
+            return new List<Recommendation>();
+        }
+
+
+        var locale = await ResolveLocale(userId);
+        var activity = await _activityMonitorService.CheckActivityChangesAsync(userId, plan.DailyPlanCreatedAt);
+        var sleep = await _sleepAnalysisService.AnalyzeSleepQualityAsync(userId, plan.DailyPlanCreatedAt);
+
+
+        var corrected = CalculateCorrectedMacros(plan, activity, sleep);
+
+
+        if (!HasMeaningfulChange(plan, corrected))
+        {
+            return new List<Recommendation>();
+        }
+
+
+        var reason = BuildReason(activity, sleep, locale);
+        var recommendation = CreateCorrectionRecommendation(
+            userId,
+            null,
+            reason,
+            corrected,
+            ExtractCurrentMacros(plan));
+
+
+        var saved = await _recommendationRepository.AddAsync(recommendation);
+        return new List<Recommendation> { saved };
+    }
+
+
+    public async Task<DailyDietPlan> ApplyCorrectionAsync(int dailyDietPlanId, int recommendationId)
+    {
+        var plan = await _dailyDietPlanRepository.GetDailyDietPlanDetailsByIdAsync(dailyDietPlanId);
+        if (plan == null)
+        {
+            throw new ArgumentException($"DailyDietPlan {dailyDietPlanId} not found");
+        }
+
+
+        var recommendation = await _recommendationRepository.GetRecommendationDetailsByIdAsync(recommendationId);
+        if (recommendation == null || recommendation.RecommendationType != RecommendationType.DietCorrection)
+        {
+            throw new ArgumentException($"Recommendation {recommendationId} not found or invalid type");
+        }
+
+
+        if (string.IsNullOrWhiteSpace(recommendation.RecommendationPayload))
+        {
+            throw new ArgumentException("Recommendation payload is empty");
+        }
+
+
+        var suggested = JsonSerializer.Deserialize<MacroNutrientsDto>(recommendation.RecommendationPayload);
+        if (suggested == null)
+        {
+            throw new ArgumentException("Failed to parse recommendation payload");
+        }
+
+
+        var oldMacros = ExtractCurrentMacros(plan);
+
+
+        plan.DailyPlanCalories = suggested.Calories;
+        plan.DailyPlanProtein = suggested.ProteinGrams;
+        plan.DailyPlanFat = suggested.FatGrams;
+        plan.DailyPlanCarbs = suggested.CarbsGrams;
+        plan.IsCorrected = true;
+
+
+        recommendation.RecommendationStatus = RecommendationStatus.Applied;
+        await _recommendationRepository.UpdateAsync(recommendation);
+        await _dailyDietPlanRepository.UpdateAsync(plan);
+
+
+        try
+        {
+            await RebalanceMealsAsync(plan, oldMacros, suggested);
+        }
+        catch
+        {
+        }
+
+
+        return plan;
+    }
+
+
+    public MacroNutrientsDto CalculateCorrectedMacros(
+        DailyDietPlan currentPlan,
+        ActivityChangeResult activity,
+        SleepQualityAnalysis sleep)
+    {
+        var macros = ExtractCurrentMacros(currentPlan);
+
+
+        if (activity.StepsSpike ||
+            (activity.TrainingIntensityChangePercent.HasValue &&
+             activity.TrainingIntensityChangePercent.Value > TrainingIntensitySpikeThreshold))
+        {
+            macros = DietCorrectionHelper.AdjustMacrosForHighActivity(macros, HighActivityCarbIncrease, HighActivityFatDecrease);
+            macros.Calories = DietCorrectionHelper.AdjustCaloriesForHighActivity(macros.Calories, HighActivityCaloriesIncreasePercent);
+        }
+        else if (activity.StepsChangePercent.HasValue &&
+                 activity.StepsChangePercent.Value < LowStepsThreshold)
+        {
+            macros = DietCorrectionHelper.AdjustMacrosForLowActivity(macros, LowActivityCarbDecrease, LowActivityProteinIncrease);
+            macros.Calories = DietCorrectionHelper.AdjustCaloriesForLowActivity(macros.Calories, LowActivityCaloriesDecreasePercent);
+        }
+
+
+        if (sleep.IsSleepDeprived)
+        {
+            macros = DietCorrectionHelper.AdjustMacrosForSleepDeprivation(macros, 0.10m, 0.10m, 0m);
+        }
+
+
+        if (activity.HeartRateAnomaly)
+        {
+            macros = DietCorrectionHelper.AdjustForAbnormalHeartRate(macros, 0.10m, 0.05m, 0.05m);
+        }
+
+
+        return macros;
+    }
+
+
+    public Recommendation CreateCorrectionRecommendation(
+        int userId,
+        int? mealId,
+        string reason,
+        MacroNutrientsDto suggestedMacros,
+        MacroNutrientsDto? currentMacros = null)
+    {
+        var payload = JsonSerializer.Serialize(suggestedMacros);
+
+
+        return new Recommendation
+        {
+            MealInstanceId = mealId,
+            RecommendationCreatedAt = DateTime.UtcNow,
+            RecommendationType = RecommendationType.DietCorrection,
+            RecommendationPayload = payload,
+            RecommendationStatus = RecommendationStatus.New
+        };
+    }
+
+
+    public string SuggestMenuChanges(DailyDietPlan currentPlan, MacroNutrientsDto newTargets)
+    {
+        var deltas = BuildDeltas(currentPlan, newTargets);
+
+
+        var locale = currentPlan.User?.Locale ?? "en";
+        var lang = GetLanguage(locale);
+        var units = _unitConversionService.DeterminePreferredUnits(locale);
+
+
+        var templateKey = "Recommendations.DietCorrection.Suggest";
+        var localized = _localizer[templateKey];
+        var templateValue = localized.ResourceNotFound
+            ? (lang == "uk"
+                ? "Рекомендується скоригувати: калорії {0} ккал, білки {1} г, жири {2} г, вуглеводи {3} г"
+                : "Suggested adjustment: calories {0} kcal, protein {1} g, fat {2} g, carbs {3} g")
+            : localized.Value;
+
+
+        var protein = FormatWithUnits(deltas.ProteinDelta, units, isWeight: true);
+        var fat = FormatWithUnits(deltas.FatDelta, units, isWeight: true);
+        var carbs = FormatWithUnits(deltas.CarbsDelta, units, isWeight: true);
+        var calories = FormatDelta(deltas.CaloriesDelta);
+
+
+        return string.Format(
+            templateValue,
+            calories,
+            protein,
+            fat,
+            carbs);
+    }
+
+
+    private static MacroNutrientsDto ExtractCurrentMacros(DailyDietPlan plan)
+    {
+        return new MacroNutrientsDto
+        {
+            Calories = plan.DailyPlanCalories,
+            ProteinGrams = plan.DailyPlanProtein,
+            FatGrams = plan.DailyPlanFat,
+            CarbsGrams = plan.DailyPlanCarbs
+        };
+    }
+
+
+    private static bool HasMeaningfulChange(DailyDietPlan plan, MacroNutrientsDto corrected)
+    {
+        const decimal epsilon = 0.01m;
+        return Math.Abs(plan.DailyPlanCalories - corrected.Calories) > epsilon
+               || Math.Abs(plan.DailyPlanProtein - corrected.ProteinGrams) > epsilon
+               || Math.Abs(plan.DailyPlanFat - corrected.FatGrams) > epsilon
+               || Math.Abs(plan.DailyPlanCarbs - corrected.CarbsGrams) > epsilon;
+    }
+
+
+    private async Task<string> ResolveLocale(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        return user?.Locale ?? "en";
+    }
+
+
+    private static string GetLanguage(string locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+        {
+            return "en";
+        }
+
+
+        var lower = locale.ToLowerInvariant();
+        if (lower.StartsWith("uk") || lower.StartsWith("ua"))
+        {
+            return "uk";
+        }
+
+
+        return "en";
+    }
+
+
+    private string BuildReason(ActivityChangeResult activity, SleepQualityAnalysis sleep, string locale)
+    {
+        var lang = GetLanguage(locale);
+        var reasons = new List<string>();
+        if (activity.StepsSpike)
+        {
+            reasons.Add(_localizer["Recommendations.DietCorrection.Reason.HighActivity"]);
+        }
+        else if (activity.StepsChangePercent.HasValue && activity.StepsChangePercent.Value < -0.30m)
+        {
+            reasons.Add(_localizer["Recommendations.DietCorrection.Reason.LowActivity"]);
+        }
+
+
+        if (sleep.IsSleepDeprived)
+        {
+            reasons.Add(_localizer["Recommendations.DietCorrection.Reason.SleepDeprived"]);
+        }
+
+
+        if (activity.HeartRateAnomaly)
+        {
+            reasons.Add(_localizer["Recommendations.DietCorrection.Reason.HeartRateAnomaly"]);
+        }
+
+
+        return reasons.Any()
+            ? string.Join("; ", reasons)
+            : _localizer["Recommendations.DietCorrection.Reason.Default"];
+    }
+
+
+    private static (decimal CaloriesDelta, decimal ProteinDelta, decimal FatDelta, decimal CarbsDelta) BuildDeltas(
+        DailyDietPlan plan,
+        MacroNutrientsDto target)
+    {
+        return (
+            CaloriesDelta: target.Calories - plan.DailyPlanCalories,
+            ProteinDelta: target.ProteinGrams - plan.DailyPlanProtein,
+            FatDelta: target.FatGrams - plan.DailyPlanFat,
+            CarbsDelta: target.CarbsGrams - plan.DailyPlanCarbs
+        );
+    }
+
+
+    private static string FormatDelta(decimal delta)
+    {
+        if (delta == 0) return "0";
+        return delta > 0 ? $"+{Math.Round(delta, 1)}" : $"{Math.Round(delta, 1)}";
+    }
+
+
+    private string FormatWithUnits(decimal deltaGrams, PreferredUnits units, bool isWeight)
+    {
+        if (!isWeight)
+        {
+            return FormatDelta(deltaGrams);
+        }
+
+
+        decimal value = deltaGrams;
+        string unitLabel = "g";
+
+
+        if (units == PreferredUnits.Imperial)
+        {
+            value = _unitConversionService.ConvertWeight(deltaGrams, PreferredUnits.Metric, PreferredUnits.Imperial, 2);
+            unitLabel = "oz";
+        }
+
+
+        var formatted = value == 0 ? "0" : (value > 0 ? $"+{value}" : $"{value}");
+        return $"{formatted} {unitLabel}";
+    }
+
+
+    public async Task RebalanceMealsAsync(DailyDietPlan plan, MacroNutrientsDto oldTotals, MacroNutrientsDto newTotals)
+    {
+        if (oldTotals.Calories <= 0 || newTotals.Calories <= 0)
+        {
+            return;
+        }
+
+
+        var ratioCalories = newTotals.Calories / oldTotals.Calories;
+        var ratioProtein = oldTotals.ProteinGrams > 0 ? newTotals.ProteinGrams / oldTotals.ProteinGrams : (decimal?)null;
+        var ratioFat = oldTotals.FatGrams > 0 ? newTotals.FatGrams / oldTotals.FatGrams : (decimal?)null;
+        var ratioCarbs = oldTotals.CarbsGrams > 0 ? newTotals.CarbsGrams / oldTotals.CarbsGrams : (decimal?)null;
+
+
+        var meals = await _mealRepository.FindAsync(m => m.DailyDietPlanId == plan.DailyDietPlanId);
+        foreach (var meal in meals)
+        {
+            var protein = ratioProtein.HasValue ? meal.MealTargetProtein * ratioProtein.Value : meal.MealTargetProtein;
+            var fat = ratioFat.HasValue ? meal.MealTargetFat * ratioFat.Value : meal.MealTargetFat;
+            var carbs = ratioCarbs.HasValue ? meal.MealTargetCarbs * ratioCarbs.Value : meal.MealTargetCarbs;
+            var calories = protein * 4m + fat * 9m + carbs * 4m;
+
+
+            meal.MealTargetProtein = Math.Round(protein, 1);
+            meal.MealTargetFat = Math.Round(fat, 1);
+            meal.MealTargetCarbs = Math.Round(carbs, 1);
+            meal.MealTargetCalories = Math.Round(calories, 1);
+            await _mealRepository.UpdateAsync(meal);
+            
+            var mealDetails = await _mealRepository.GetMealDetailsByIdAsync(meal.MealId);
+            if (mealDetails?.MealRecipes == null || !mealDetails.MealRecipes.Any())
+            {
+                continue;
+            }
+
+
+            var recipesCount = mealDetails.MealRecipes.Count;
+            foreach (var mealRecipe in mealDetails.MealRecipes)
+            {
+                var recipeDetails = await _recipeRepository.GetRecipeDetailsByIdAsync(mealRecipe.RecipeId);
+                var perRecipeTargetCalories = recipesCount > 0
+                    ? meal.MealTargetCalories / recipesCount
+                    : meal.MealTargetCalories;
+
+
+                if (recipeDetails != null)
+                {
+                    var portionMultiplier = PortionCalculator.CalculatePortionMultiplier(recipeDetails, perRecipeTargetCalories);
+                    var portionsMetadata = PortionCalculator.BuildPortionsMetadata(recipeDetails, portionMultiplier);
+                    mealRecipe.PortionsMetadata = portionsMetadata;
+                }
+                else
+                {
+                    mealRecipe.PortionsMetadata = string.Empty;
+                }
+
+
+                await _mealRecipeRepository.UpdateAsync(mealRecipe);
+            }
+        }
+    }
+}
+Б 10 Програмний код  сервісу SleepAnalysisService 
+public class SleepAnalysisService : ISleepAnalysisService
+{
+    private readonly ApplicationDbContext _context;
+
+
+    public SleepAnalysisService(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+
+    public async Task<SleepQualityAnalysis> AnalyzeSleepQualityAsync(int userId, DateTime date, int days = 3)
+    {
+        var endDate = date.Date;
+        var startDate = endDate.AddDays(-(days - 1));
+
+
+        var deviceIds = await _context.Devices
+            .Where(d => d.UserId == userId)
+            .Select(d => d.DeviceId)
+            .ToListAsync();
+
+
+        if (!deviceIds.Any())
+        {
+            return new SleepQualityAnalysis();
+        }
+
+
+        var records = await _context.SleepRecords
+            .Where(sr => deviceIds.Contains(sr.DeviceId)
+                         && sr.Date.Date >= startDate
+                         && sr.Date.Date <= endDate)
+            .ToListAsync();
+
+
+        if (!records.Any())
+        {
+            return new SleepQualityAnalysis();
+        }
+
+
+        var averageSleepHours = records
+            .Select(r => r.TotalSleepMinutes)
+            .DefaultIfEmpty(0)
+            .Average() / 60d;
+
+
+        var deepPercents = records
+            .Where(r => r.TotalSleepMinutes > 0)
+            .Select(r => (decimal)r.DeepSleepMinutes / r.TotalSleepMinutes)
+            .ToList();
+
+
+        decimal? averageDeepPercent = deepPercents.Any() ? deepPercents.Average() : null;
+
+
+        var qualityValues = records
+            .Where(r => r.SleepQuality.HasValue)
+            .Select(r => r.SleepQuality!.Value)
+            .ToList();
+
+
+        decimal? averageQuality = qualityValues.Any() ? qualityValues.Average() : null;
+
+
+        var isSleepDeprived = records.Any(IsSleepDeprived);
+
+
+        return new SleepQualityAnalysis
+        {
+            AverageSleepHours = (Decimal)averageSleepHours,
+            AverageDeepSleepPercent = averageDeepPercent,
+            AverageQuality = averageQuality,
+            IsSleepDeprived = isSleepDeprived
+        };
+    }
+
+
+    public bool IsSleepDeprived(FitnessProject.Entities.SleepRecord record)
+    {
+        var totalMinutes = record.TotalSleepMinutes;
+        var deepPercent = totalMinutes > 0
+            ? (decimal)record.DeepSleepMinutes / totalMinutes
+            : (decimal?)null;
+
+
+        var quality = record.SleepQuality;
+
+
+        var totalBad = totalMinutes > 0 && totalMinutes < SleepThresholds.TotalSleepMinutesCritical;
+        var deepBad = deepPercent.HasValue && deepPercent.Value < SleepThresholds.DeepSleepPercentCritical;
+        var qualityBad = quality.HasValue && quality.Value < SleepThresholds.SleepQualityCritical;
+
+
+        return totalBad || deepBad || qualityBad;
+    }
+
+
+    public bool ShouldAdjustForSleepDeprivation(SleepQualityAnalysis analysis)
+    {
+        if (analysis.IsSleepDeprived)
+        {
+            return true;
+        }
+
+
+        if (analysis.AverageQuality.HasValue && analysis.AverageQuality.Value < SleepThresholds.SleepQualityCritical)
+        {
+            return true;
+        }
+
+
+        return false;
+    }
+}
+Б 11 Програмний код  допоміжного  helper-класу DietCorrectionHelper
+public static class DietCorrectionHelper
+{
+    public static decimal AdjustCaloriesForHighActivity(decimal currentCalories, decimal activityIncreasePercent)
+    {
+        if (activityIncreasePercent <= 0)
+        {
+            return currentCalories;
+        }
+
+
+        return currentCalories * (1 + activityIncreasePercent / 100m);
+    }
+
+
+    public static decimal AdjustCaloriesForLowActivity(decimal currentCalories, decimal activityDecreasePercent)
+    {
+        if (activityDecreasePercent <= 0)
+        {
+            return currentCalories;
+        }
+
+
+        var adjusted = currentCalories * (1 - activityDecreasePercent / 100m);
+        return adjusted < 0 ? 0 : adjusted;
+    }
+
+
+    public static MacroNutrientsDto AdjustMacrosForSleepDeprivation(
+        MacroNutrientsDto currentMacros,
+        decimal carbDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.10m,
+        decimal fatIncreasePercent = 0m)
+    {
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var carbs = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+        var fat = ApplyIncrease(currentMacros.FatGrams, fatIncreasePercent);
+
+
+        return RecalculateCalories(protein, fat, carbs);
+    }
+
+
+    public static MacroNutrientsDto AdjustForAbnormalHeartRate(
+        MacroNutrientsDto currentMacros,
+        decimal calorieDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.05m,
+        decimal carbDecreasePercent = 0.05m)
+    {
+        var targetCalories = AdjustCaloriesForLowActivity(currentMacros.Calories, calorieDecreasePercent);
+
+
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var carbs = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+        var fat = currentMacros.FatGrams;
+
+
+        var adjusted = RecalculateCalories(protein, fat, carbs);
+
+
+        if (adjusted.Calories > targetCalories && adjusted.Calories > 0)
+        {
+            var ratio = targetCalories / adjusted.Calories;
+            adjusted.ProteinGrams = Math.Round(adjusted.ProteinGrams * ratio, 1);
+            adjusted.FatGrams = Math.Round(adjusted.FatGrams * ratio, 1);
+            adjusted.CarbsGrams = Math.Round(adjusted.CarbsGrams * ratio, 1);
+            adjusted.Calories = targetCalories;
+        }
+
+
+        return adjusted;
+    }
+
+
+    public static MacroNutrientsDto AdjustMacrosForHighActivity(
+        MacroNutrientsDto currentMacros,
+        decimal carbIncreasePercent = 0.10m,
+        decimal fatDecreasePercent = 0.05m)
+    {
+        var protein = currentMacros.ProteinGrams;
+        var fatDecreased = ApplyDecrease(currentMacros.FatGrams, fatDecreasePercent);
+        var carbsIncreased = ApplyIncrease(currentMacros.CarbsGrams, carbIncreasePercent);
+
+
+        var normalized = NormalizeToCalories(protein, fatDecreased, carbsIncreased, currentMacros.Calories);
+
+
+        normalized.FatGrams = Math.Min(normalized.FatGrams, fatDecreased);
+        normalized.CarbsGrams = Math.Max(normalized.CarbsGrams, carbsIncreased);
+        normalized.ProteinGrams = protein;
+        return normalized;
+    }
+
+
+    public static MacroNutrientsDto AdjustMacrosForLowActivity(
+        MacroNutrientsDto currentMacros,
+        decimal carbDecreasePercent = 0.10m,
+        decimal proteinIncreasePercent = 0.10m)
+    {
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var fat = currentMacros.FatGrams;
+        var carbsDecreased = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+
+
+        var normalized = NormalizeToCalories(protein, fat, carbsDecreased, currentMacros.Calories);
+        normalized.ProteinGrams = Math.Max(normalized.ProteinGrams, protein);
+        normalized.CarbsGrams = Math.Min(normalized.CarbsGrams, carbsDecreased);
+        normalized.FatGrams = fat;
+        return normalized;
+    }
+
+
+    public static MacroNutrientsDto AdjustMacrosForRecovery(
+        MacroNutrientsDto currentMacros,
+        decimal proteinIncreasePercent = 0.10m,
+        decimal fatIncreasePercent = 0.05m,
+        decimal carbDecreasePercent = 0.05m)
+    {
+        var protein = ApplyIncrease(currentMacros.ProteinGrams, proteinIncreasePercent);
+        var fatIncreased = ApplyIncrease(currentMacros.FatGrams, fatIncreasePercent);
+        var carbsDecreased = ApplyDecrease(currentMacros.CarbsGrams, carbDecreasePercent);
+
+
+        var normalized = NormalizeToCalories(protein, fatIncreased, carbsDecreased, currentMacros.Calories);
+        normalized.ProteinGrams = Math.Max(normalized.ProteinGrams, protein);
+        normalized.FatGrams = Math.Max(normalized.FatGrams, fatIncreased);
+        normalized.CarbsGrams = Math.Min(normalized.CarbsGrams, carbsDecreased);
+        return normalized;
+    }
+
+
+    private static MacroNutrientsDto RecalculateCalories(decimal proteinGrams, decimal fatGrams, decimal carbsGrams)
+    {
+        var calories = proteinGrams * 4m + fatGrams * 9m + carbsGrams * 4m;
+
+
+        return new MacroNutrientsDto
+        {
+            Calories = Math.Round(calories, 1),
+            ProteinGrams = Math.Round(proteinGrams, 1),
+            FatGrams = Math.Round(fatGrams, 1),
+            CarbsGrams = Math.Round(carbsGrams, 1)
+        };
+    }
+
+
+    private static decimal ApplyIncrease(decimal value, decimal percent)
+    {
+        if (percent <= 0)
+        {
+            return value;
+        }
+        return value * (1 + percent);
+    }
+
+
+    private static decimal ApplyDecrease(decimal value, decimal percent)
+    {
+        if (percent <= 0)
+        {
+            return value;
+        }
+        var decreased = value * (1 - percent);
+        return decreased < 0 ? 0 : decreased;
+    }
+
+
+    private static MacroNutrientsDto NormalizeToCalories(decimal protein, decimal fat, decimal carbs, decimal targetCalories)
+    {
+        var adjusted = RecalculateCalories(protein, fat, carbs);
+
+
+        if (adjusted.Calories <= 0 || targetCalories <= 0)
+        {
+            return adjusted;
+        }
+
+
+        var ratio = targetCalories / adjusted.Calories;
+        return new MacroNutrientsDto
+        {
+            Calories = Math.Round(targetCalories, 1),
+            ProteinGrams = Math.Round(adjusted.ProteinGrams * ratio, 1),
+            FatGrams = Math.Round(adjusted.FatGrams * ratio, 1),
+            CarbsGrams = Math.Round(adjusted.CarbsGrams * ratio, 1)
+        };
+    }
+}
+Б 12 Програмний код  сервісу StatisticsService 
+public class StatisticsService : IStatisticsService
+{
+    private readonly ITelemetrySampleRepository _telemetrySampleRepository;
+    private readonly ISleepRecordRepository _sleepRecordRepository;
+    private readonly ITrainingSessionRepository _trainingSessionRepository;
+    private readonly IDeviceRepository _deviceRepository;
+
+
+    public StatisticsService(
+        ITelemetrySampleRepository telemetrySampleRepository,
+        ISleepRecordRepository sleepRecordRepository,
+        ITrainingSessionRepository trainingSessionRepository,
+        IDeviceRepository deviceRepository)
+    {
+        _telemetrySampleRepository = telemetrySampleRepository;
+        _sleepRecordRepository = sleepRecordRepository;
+        _trainingSessionRepository = trainingSessionRepository;
+        _deviceRepository = deviceRepository;
+    }
+
+
+    public async Task<DailyStatisticsDto> GetDailyStatisticsAsync(int userId, DateTime date)
+    {
+        var day = date.Date;
+        var devices = await _deviceRepository.FindAsync(d => d.UserId == userId);
+        var deviceIds = devices.Select(d => d.DeviceId).ToList();
+        if (!deviceIds.Any())
+        {
+            return new DailyStatisticsDto();
+        }
+
+
+        var telemetry = await AggregateTelemetryForDay(deviceIds, day);
+        var sleep = await AggregateSleepForDay(deviceIds, day);
+        var training = await AggregateTrainingsForDay(deviceIds, day);
+
+
+        return new DailyStatisticsDto
+        {
+            Steps = telemetry.Steps,
+            HeartRateAvg = telemetry.HeartRateAvg,
+            HeartRateMin = telemetry.HeartRateMin,
+            HeartRateMax = telemetry.HeartRateMax,
+            HeartRateSamples = telemetry.HeartRateSamples,
+
+
+            TotalSleepMinutes = sleep.TotalSleepMinutes,
+            DeepSleepMinutes = sleep.DeepSleepMinutes,
+            LightSleepMinutes = sleep.LightSleepMinutes,
+            AwakeMinutes = sleep.AwakeMinutes,
+            SleepQualityAvg = sleep.SleepQualityAvg,
+
+
+            TrainingCount = training.TrainingCount,
+            TrainingDurationMinutes = training.TrainingDurationMinutes,
+            TrainingIntensityAvg = training.TrainingIntensityAvg,
+            TrainingCalories = training.TrainingCalories
+        };
+    }
+
+
+    public async Task<WeeklyStatisticsDto> GetWeeklyStatisticsAsync(int userId, DateTime startDate)
+    {
+        var start = startDate.Date;
+        var end = start.AddDays(7);
+
+
+        var days = new List<DailyStatisticsDto>();
+        for (var day = start; day < end; day = day.AddDays(1))
+        {
+            days.Add(await GetDailyStatisticsAsync(userId, day));
+        }
+
+
+        var weekly = new WeeklyStatisticsDto
+        {
+            StartDate = start,
+            EndDate = end.AddDays(-1),
+            Days = days
+        };
+
+
+        weekly.TotalSteps = days.Sum(d => d.Steps);
+        weekly.HeartRateAvg = AverageNullable(days.Select(d => d.HeartRateAvg));
+        weekly.HeartRateMin = MinNullable(days.Select(d => d.HeartRateMin));
+        weekly.HeartRateMax = MaxNullable(days.Select(d => d.HeartRateMax));
+
+
+        weekly.TotalSleepMinutes = days.Sum(d => d.TotalSleepMinutes);
+        weekly.DeepSleepMinutes = days.Sum(d => d.DeepSleepMinutes);
+        weekly.LightSleepMinutes = days.Sum(d => d.LightSleepMinutes);
+        weekly.AwakeMinutes = days.Sum(d => d.AwakeMinutes);
+        weekly.SleepQualityAvg = AverageNullable(days.Select(d => d.SleepQualityAvg));
+
+
+        weekly.TrainingCount = days.Sum(d => d.TrainingCount);
+        weekly.TrainingDurationMinutes = days.Sum(d => d.TrainingDurationMinutes);
+        weekly.TrainingIntensityAvg = AverageNullable(days.Select(d => d.TrainingIntensityAvg));
+        weekly.TrainingCalories = days.Sum(d => d.TrainingCalories);
+
+
+        weekly.StepsTrendPercent = CalculateTrend(days, d => d.Steps);
+        weekly.HeartRateAvgTrendPercent = CalculateTrend(days, d => d.HeartRateAvg ?? 0);
+        weekly.SleepMinutesTrendPercent = CalculateTrend(days, d => (decimal)d.TotalSleepMinutes);
+        weekly.TrainingDurationTrendPercent = CalculateTrend(days, d => (decimal)d.TrainingDurationMinutes);
+        weekly.TrainingCaloriesTrendPercent = CalculateTrend(days, d => d.TrainingCalories);
+
+
+        return weekly;
+    }
+
+
+    public async Task<WeekComparisonDto> CompareWithPreviousWeek(int userId, DateTime currentWeekStart)
+    {
+        var current = await GetWeeklyStatisticsAsync(userId, currentWeekStart);
+        var previousStart = currentWeekStart.Date.AddDays(-7);
+        var previous = await GetWeeklyStatisticsAsync(userId, previousStart);
+
+
+        return new WeekComparisonDto
+        {
+            CurrentWeek = current,
+            PreviousWeek = previous,
+            StepsChangePercent = ChangePercent(previous.TotalSteps, current.TotalSteps),
+            HeartRateAvgChangePercent = ChangePercent(previous.HeartRateAvg, current.HeartRateAvg),
+            TotalSleepChangePercent = ChangePercent(previous.TotalSleepMinutes, current.TotalSleepMinutes),
+            TrainingDurationChangePercent = ChangePercent(previous.TrainingDurationMinutes, current.TrainingDurationMinutes),
+            TrainingCaloriesChangePercent = ChangePercent(previous.TrainingCalories, current.TrainingCalories)
+        };
+    }
+
+
+    private async Task<TelemetryAggregateDto> AggregateTelemetryForDay(List<int> deviceIds, DateTime date)
+    {
+        var start = date.Date;
+        var end = start.AddDays(1);
+
+
+        var heartRates = await _telemetrySampleRepository
+            .FindAsync(ts => deviceIds.Contains(ts.DeviceId)
+                             && ts.TelemetryType == TelemetryType.HeartRate
+                             && ts.Timestamp >= start
+                             && ts.Timestamp < end);
+
+
+        var stepsSamples = await _telemetrySampleRepository
+            .FindAsync(ts => deviceIds.Contains(ts.DeviceId)
+                             && ts.TelemetryType == TelemetryType.Steps
+                             && ts.Timestamp >= start
+                             && ts.Timestamp < end);
+
+
+        var heartRateValues = heartRates.Select(hr => hr.TelemetryValue).ToList();
+
+
+        return new TelemetryAggregateDto
+        {
+            Steps = stepsSamples.Sum(s => s.TelemetryValue),
+            HeartRateAvg = heartRateValues.Any() ? heartRateValues.Average() : null,
+            HeartRateMin = heartRateValues.Any() ? heartRateValues.Min() : null,
+            HeartRateMax = heartRateValues.Any() ? heartRateValues.Max() : null,
+            HeartRateSamples = heartRateValues.Count
+        };
+    }
+
+
+    private async Task<SleepAggregateDto> AggregateSleepForDay(List<int> deviceIds, DateTime date)
+    {
+        var day = date.Date;
+        var records = await _sleepRecordRepository
+            .FindAsync(sr => deviceIds.Contains(sr.DeviceId) && sr.Date.Date == day);
+
+
+        var qualityList = records.Where(r => r.SleepQuality.HasValue).Select(r => r.SleepQuality!.Value).ToList();
+
+
+        return new SleepAggregateDto
+        {
+            TotalSleepMinutes = records.Sum(r => r.TotalSleepMinutes),
+            DeepSleepMinutes = records.Sum(r => r.DeepSleepMinutes),
+            LightSleepMinutes = records.Sum(r => r.LightSleepMinutes),
+            AwakeMinutes = records.Sum(r => r.AwakeMinutes),
+            SleepQualityAvg = qualityList.Any() ? qualityList.Average() : null
+        };
+    }
+
+
+    private async Task<TrainingAggregateDto> AggregateTrainingsForDay(List<int> deviceIds, DateTime date)
+    {
+        var day = date.Date;
+        var trainings = await _trainingSessionRepository
+            .FindAsync(t => deviceIds.Contains(t.DeviceId) && t.StartTime.Date == day);
+
+
+        var intensityValues = trainings.Select(t => (decimal)t.Intensity).ToList();
+
+
+        return new TrainingAggregateDto
+        {
+            TrainingCount = trainings.Count(),
+            TrainingDurationMinutes = trainings.Sum(t => t.DurationInMin),
+            TrainingIntensityAvg = intensityValues.Any() ? intensityValues.Average() : null,
+            TrainingCalories = trainings.Sum(t => t.CaloriesEstimated ?? 0)
+        };
+    }
+
+
+    private static decimal? AverageNullable(IEnumerable<decimal?> values)
+    {
+        var list = values.Where(v => v.HasValue).Select(v => v.Value).ToList();
+        return list.Any() ? list.Average() : null;
+    }
+
+
+    private static decimal? MinNullable(IEnumerable<decimal?> values)
+    {
+        var list = values.Where(v => v.HasValue).Select(v => v.Value).ToList();
+        return list.Any() ? list.Min() : null;
+    }
+
+
+    private static decimal? MaxNullable(IEnumerable<decimal?> values)
+    {
+        var list = values.Where(v => v.HasValue).Select(v => v.Value).ToList();
+        return list.Any() ? list.Max() : null;
+    }
+
+
+    private static decimal? CalculateTrend(List<DailyStatisticsDto> days, Func<DailyStatisticsDto, decimal> selector)
+    {
+        var values = days.Select(selector).ToList();
+        var nonZeroCount = values.Count(v => v != 0);
+        if (nonZeroCount < 6) return null;
+
+
+        var first3 = values.Take(3).Average();
+        var last3 = values.Skip(Math.Max(0, values.Count - 3)).Average();
+
+
+        if (first3 == 0) return null;
+        return (last3 - first3) / first3;
+    }
+
+
+    private static decimal? ChangePercent(decimal? oldValue, decimal? newValue)
+    {
+        if (!oldValue.HasValue || !newValue.HasValue) return null;
+        if (oldValue.Value == 0) return null;
+        return (newValue.Value - oldValue.Value) / oldValue.Value;
+    }
+
+
+    private static decimal? ChangePercent(decimal oldValue, decimal newValue)
+    {
+        if (oldValue == 0) return null;
+        return (newValue - oldValue) / oldValue;
+    }
+}
+Б 13 Програмний код  сервісу BasicAuthenticationHandler 
+public class BasicAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    private readonly IUserRepository _userRepository;
+
+
+    public BasicAuthenticationHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
+        ISystemClock clock,
+        IUserRepository userRepository)
+        : base(options, logger, encoder, clock)
+    {
+        _userRepository = userRepository;
+    }
+
+
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.ContainsKey("Authorization"))
+        {
+            Logger.LogWarning("No Authorization header");
+            return AuthenticateResult.NoResult();
+        }
+
+
+        try
+        {
+            var authHeader = AuthenticationHeaderValue.Parse(Request.Headers["Authorization"]);
+            if (!"Basic".Equals(authHeader.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogWarning("Auth scheme is not Basic");
+                return AuthenticateResult.NoResult();
+            }
+
+
+            var credentialBytes = Convert.FromBase64String(authHeader.Parameter ?? string.Empty);
+            var credentials = Encoding.UTF8.GetString(credentialBytes).Split(':', 2);
+            if (credentials.Length != 2)
+            {
+                Logger.LogWarning("Invalid Authorization header format");
+                return AuthenticateResult.Fail("Invalid Authorization header");
+            }
+
+
+            var email = credentials[0];
+            var password = credentials[1];
+
+
+            var user = await _userRepository.GetByEmailAsync(email);
+            if (user == null)
+            {
+                Logger.LogWarning("User not found for email {Email}", email);
+                return AuthenticateResult.Fail("Invalid credentials");
+            }
+
+
+            var (hashedBase64, hashedHex) = HashPassword(password);
+            var stored = user.PasswordHash ?? string.Empty;
+            if (!string.Equals(hashedBase64, stored, StringComparison.Ordinal) &&
+                !string.Equals(hashedHex, stored, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogWarning("Password mismatch for email {Email}. Stored='{Stored}', calcBase64='{CalcBase64}', calcHex='{CalcHex}'",
+                    email, stored, hashedBase64, hashedHex);
+                return AuthenticateResult.Fail("Invalid credentials");
+            }
+
+
+            var locale = NormalizeLocale(user.Locale);
+
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim("locale", locale)
+            };
+            var identity = new ClaimsIdentity(claims, Scheme.Name);
+            var principal = new ClaimsPrincipal(identity);
+            var ticket = new AuthenticationTicket(principal, Scheme.Name);
+
+
+            Logger.LogInformation("Authenticated {Email} with role {Role}", email, user.Role);
+            return AuthenticateResult.Success(ticket);
+        }
+        catch (FormatException)
+        {
+            Logger.LogError("Authorization header format exception");
+            return AuthenticateResult.Fail("Invalid Authorization header");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Authentication failed");
+            return AuthenticateResult.Fail(ex);
+        }
+    }
+
+
+    private static (string Base64, string Hex) HashPassword(string password)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(password);
+        var hash = sha256.ComputeHash(bytes);
+        var base64 = Convert.ToBase64String(hash);
+        var hex = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        return (base64, hex);
+    }
+
+
+    private static string NormalizeLocale(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+        {
+            return "uk-UA";
+        }
+
+
+        var lower = locale.ToLowerInvariant();
+        if (lower.StartsWith("uk") || lower.StartsWith("ua"))
+            return "uk-UA";
+        if (lower.StartsWith("en"))
+            return "en-US";
+
+
+        return "uk-UA";
+    }
+}
+Б 14 Програмний код  сервісу BasicAuthenticationHandler 
+using FitnessProject.BLL.DTO.Localization;
+using FitnessProject.BLL.Services.Interfaces;
+using System.Xml.Linq;
+using System.Resources.Extensions;
+
+
+
+
+namespace FitnessProject.BLL.Services;
+
+
+public class LocalizationAdminService : ILocalizationAdminService
+{
+    private readonly string _resourcesPath;
+    private readonly string[] _allowedCultures = new[] { "uk", "en" };
+
+
+    public LocalizationAdminService(IWebHostEnvironment env)
+    {
+        _resourcesPath = Path.Combine(env.ContentRootPath, "Resources");
+    }
+
+
+    public Task<Dictionary<string, string>> GetKeysAsync(string culture)
+    {
+        EnsureCulture(culture);
+        var path = ResolveResxPath(culture);
+        var dict = ReadResx(path);
+        return Task.FromResult(dict);
+    }
+
+
+    public Task<IEnumerable<string>> GetMissingKeysAsync(string baseCulture, string compareCulture)
+    {
+        EnsureCulture(baseCulture);
+        EnsureCulture(compareCulture);
+
+
+        var baseKeys = ReadResx(ResolveResxPath(baseCulture)).Keys.ToHashSet();
+        var compareKeys = ReadResx(ResolveResxPath(compareCulture)).Keys.ToHashSet();
+
+
+        var missing = baseKeys.Except(compareKeys);
+        return Task.FromResult<IEnumerable<string>>(missing);
+    }
+
+
+    public Task UpdateKeyAsync(LocalizationKeyUpdateDto dto)
+    {
+        EnsureCulture(dto.Culture);
+        var path = ResolveResxPath(dto.Culture);
+        var data = ReadResx(path);
+        data[dto.Key] = dto.Value;
+        WriteResx(path, data);
+        return Task.CompletedTask;
+    }
+
+
+    public async Task<LocalizationExportDto> ExportAsync()
+    {
+        var uk = await GetKeysAsync("uk");
+        var en = await GetKeysAsync("en");
+        return new LocalizationExportDto { Uk = uk, En = en };
+    }
+
+
+    public async Task ImportAsync(LocalizationImportDto dto)
+    {
+        if (dto.Uk != null)
+        {
+            var pathUk = ResolveResxPath("uk");
+            WriteResx(pathUk, dto.Uk);
+        }
+
+
+        if (dto.En != null)
+        {
+            var pathEn = ResolveResxPath("en");
+            WriteResx(pathEn, dto.En);
+        }
+    }
+
+
+    private string ResolveResxPath(string culture)
+    {
+        var suffix = culture switch
+        {
+            "uk" => "Shared.uk.resx",
+            "en" => "Shared.en.resx",
+            _ => throw new ArgumentException("Unsupported culture", nameof(culture))
+        };
+        return Path.Combine(_resourcesPath, suffix);
+    }
+
+
+    private static Dictionary<string, string> ReadResx(string path)
+    {
+        var dict = new Dictionary<string, string>();
+        if (!File.Exists(path))
+        {
+            return dict;
+        }
+
+
+        var doc = XDocument.Load(path);
+        foreach (var data in doc.Descendants("data"))
+        {
+            var nameAttr = data.Attribute("name");
+            var valueElem = data.Element("value");
+            if (nameAttr != null && valueElem != null)
+            {
+                dict[nameAttr.Value] = valueElem.Value;
+            }
+        }
+
+
+        return dict;
+    }
+
+
+    private static void WriteResx(string path, Dictionary<string, string> data)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+
+        var doc = new XDocument(
+            new XDeclaration("1.0", "utf-8", "yes"),
+            new XElement("root",
+                new XElement("resheader",
+                    new XAttribute("name", "resmimetype"),
+                    new XElement("value", "text/microsoft-resx")),
+                new XElement("resheader",
+                    new XAttribute("name", "version"),
+                    new XElement("value", "2.0")),
+                new XElement("resheader",
+                    new XAttribute("name", "reader"),
+                    new XElement("value", "System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")),
+                new XElement("resheader",
+                    new XAttribute("name", "writer"),
+                    new XElement("value", "System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")),
+                data.OrderBy(k => k.Key).Select(kvp =>
+                    new XElement("data",
+                        new XAttribute("name", kvp.Key),
+                        new XAttribute(XNamespace.Xml + "space", "preserve"),
+                        new XElement("value", kvp.Value)))
+            ));
+
+
+        doc.Save(path);
+    }
+
+
+    private void EnsureCulture(string culture)
+    {
+        var shortCulture = culture.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("uk") || c.StartsWith("ua") => "uk",
+            var c when c.StartsWith("en") => "en",
+            _ => culture.ToLowerInvariant()
+        };
+        if (!_allowedCultures.Contains(shortCulture))
+        {
+            throw new ArgumentException("Unsupported culture", nameof(culture));
+        }
+    }
+}
