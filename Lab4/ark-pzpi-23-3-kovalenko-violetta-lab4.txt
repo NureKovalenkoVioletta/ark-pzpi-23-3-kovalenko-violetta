@@ -1,0 +1,1130 @@
+﻿Міністерство освіти та науки України
+
+
+Харківський національний університет радіоелектроніки
+
+
+Кафедра ПІ
+
+
+ЗВІТ
+з лабораторної роботи № 4
+з дисципліни “Аналіз та рефакторинг коду
+на тему:
+“Створення IоT клієнта”
+
+
+
+
+
+
+
+
+Виконала:                                                        
+ст. гр.  ПЗПІ-23-3                                                       Коваленко В. О.
+
+
+Перевірив:
+ст. викладач кафедри ПІ                                            Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+________________
+1 ІСТОРІЯ ЗМІН
+Таблиця 1.1 – Історія змін у звіті
+№
+	Дата
+	Версія звіту
+	Опис змін та виправлень
+	1
+	21.12.2025
+	0.1
+	Створено розділ “Завдання”
+	2
+	23.12.2025
+	0.2
+	Додано розділ “Опис виконаної роботи”
+	3
+	24.12.2025
+	1.0
+	Додано додатки А, Б, В
+	________________
+
+
+2 ЗАВДАННЯ
+1. Розробити будову програмного забезпечення IoT клієнта:
+   * Спроектувати архітектуру IoT клієнта, враховуючи його призначення та взаємодію з серверною частиною. Розробити загальну структуру, включаючи модулі обробки даних, мережевих протоколів та управління пристроями.
+2. Створити UML діаграму прецедентів для IoT клієнта:
+   * Діаграма прецедентів повинна описувати основні сценарії взаємодії користувача та системи з IoT клієнтом. Це можуть бути такі прецеденти, як «Налаштування параметрів клієнта», «Надсилання даних на сервер», «Оновлення прошивки» тощо.
+3. Розробити бізнес логіку та функції налаштування IoT клієнта:
+   * Розробити основну бізнес логіку для роботи з даними пристроїв (зчитування, відправлення на сервер тощо).
+   * Розробити функції налаштування IoT клієнта (конфігурування мережі, параметрів підключення, управління енергоспоживанням).
+4. Створити UML діаграму діяльності для IoT клієнта:
+   * Діаграма діяльності повинна відображати основні дії IoT клієнта, наприклад, послідовність дій при передачі даних на сервер, процес з'єднання з мережею або оновлення прошивки.
+5. Створити програмну реалізацію бізнес логіки та функцій налаштування IoT клієнта:
+   * Реалізувати програмний код для виконання бізнес логіки, включаючи обробку даних з датчиків, комунікацію із серверною частиною через мережеві протоколи (наприклад, MQTT, HTTP).
+   * Реалізувати налаштування IoT клієнта, такі як конфігурація мережі, перезавантаження або відновлення параметрів за замовчуванням.
+6. Перевірити роботу IoT клієнта:
+   * Провести тестування розроблених компонентів IoT клієнта, перевіривши коректність обміну даними із сервером, функціональність налаштувань та стабільність роботи.
+________________
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+3.1 Вступ
+У ході виконання лабораторної роботи було розроблено IoT клієнт для системи фітнес-трекінгу, який симулює роботу фітнес-трекеру та взаємодіє з серверною частиною через HTTP API. Реалізовано всі необхідні компоненти: архітектуру, UML діаграми, бізнес-логіку, налаштування та програмну реалізацію.
+3.2 Розробка будову програмного забезпечення IoT клієнта:
+3.2.1 Проектування архітектури
+Архітектура IoT клієнта спроєктована з урахуванням його ролі як проміжної між фізичним пристроєм та серверною частиною системи автоматизації дієт. Клієнт відповідає за збір телеметрії, первинну обробку даних, збереження налаштувань пристрою та синхронізацію з сервером. 
+Система побудована за модульним принципом. Це дозволяє розширювати функціональність клієнта без втручання в існуючу логіку. 
+Структура проекту:
+IoTClientFitnessProject/
+├── config/
+│   ├── config.default.json
+│   └── config.json
+├── src/
+│   ├── base_api_client.py
+│   ├── telemetry_api_client.py
+│   ├── diet_api_client.py
+│   ├── statistics_api_client.py
+│   ├── user_api_client.py
+│   ├── recommendations_api_client.py
+│   ├── api_client.py
+│   ├── config_manager.py
+│   ├── sensor_simulator.py
+│   ├── statistics_calculator.py
+│   ├── watch_gui.py
+│   └── main.py
+├── diagrams/
+│   ├── use_case_diagram.puml
+│   └── activity_diagram.puml
+└── requirements.txt
+
+
+Каталог конфігурації config.json містить стандартні та користувацькі налаштування клієнта. Файл з дефолтними параметрами визначає базові значення, з якими система може працювати одразу після розгортання.
+
+
+{
+"server": {
+"base_url": "http://localhost:5006",
+"timeout": 10,
+"retry_attempts": 3,
+"retry_delay": 5
+},
+"device": {
+"device_id": 1,
+"user_id": 1,
+"device_type": "FitnessTracker",
+"connection_type": "WiFi"
+},
+"sensors": {
+"heart_rate_interval": 5,
+"steps_interval": 5,
+"blood_pressure_interval": 600
+},
+"data": {
+"batch_size": 5,
+"send_interval": 15
+},
+"logging": {
+"level": "INFO",
+"file": "logs/iot_client.log"
+}
+}
+
+
+Каталог вихідного коду містить усю логіку клієнта. Базовий API клієнт реалізує механізми мережевої взаємодії. Він відповідає за формування HTTP запитів, обробку відповідей сервера та повторні спроби при тимчасових помилках зʼєднання. 
+Клієнт телеметрії TelemetryApiClient відповідає за відправку даних з датчиків. Він отримує підготовлені значення та передає їх на сервер у стандартизованому форматі.  
+
+
+class TelemetryApiClient(BaseApiClient):
+    
+    def send_telemetry(self, telemetry_type: int, value: float, 
+                      timestamp: datetime, metadata: Optional[Dict] = None) -> bool:
+        url = f"{self.base_url}/api/telemetry/receive"
+        
+        payload = {
+            "deviceId": self.device_id,
+            "timestamp": timestamp.isoformat(),
+            "telemetryType": telemetry_type,
+            "value": float(value),
+            "metadata": metadata
+        }
+        
+        response = self._make_request('POST', url, payload=payload)
+        
+        if response:
+            print(f"[API] Телеметрія відправлена: тип={telemetry_type}, значення={value}")
+            return True
+        else:
+            print(f"[API] Не вдалося відправити телеметрію: тип={telemetry_type}, значення={value}")
+            return False
+    
+    def send_telemetry_batch(self, items: List[Dict]) -> bool:
+        """Відправляє батч телеметрії"""
+        url = f"{self.base_url}/api/telemetry/receive/batch"
+        
+        payload = {
+            "items": items
+        }
+        
+        response = self._make_request('POST', url, payload=payload)
+        
+        if response:
+            print(f"[API] Батч телеметрії відправлено: {len(items)} записів")
+            return True
+        else:
+            print(f"[API] Не вдалося відправити батч телеметрії: {len(items)} записів")
+            return False
+    
+    def send_sleep_record(self, sleep_data: Dict) -> bool:
+        url = f"{self.base_url}/api/SleepRecords"
+        
+        # Додаємо deviceId до даних
+        payload = {
+            "deviceId": self.device_id,
+            **sleep_data
+        }
+        
+        if 'date' in payload and isinstance(payload['date'], datetime):
+            payload['date'] = payload['date'].date().isoformat()
+        if 'startTime' in payload and isinstance(payload['startTime'], datetime):
+            payload['startTime'] = payload['startTime'].isoformat()
+        if 'endTime' in payload and isinstance(payload['endTime'], datetime):
+            payload['endTime'] = payload['endTime'].isoformat()
+        
+        response = self._make_request('POST', url, payload=payload)
+        
+        if response:
+            print(f"[API] Дані про сон відправлено: {sleep_data.get('totalSleepMinutes', 0)} хвилин")
+            return True
+        else:
+            print(f"[API] Не вдалося відправити дані про сон")
+            return False
+
+
+Клієнт дієтичних планів DietApiClient завантажує інформацію про рекомендоване харчування та рецепти. 
+
+
+class DietApiClient(BaseApiClient):
+    def get_daily_diet_plans(self, user_id: Optional[int] = None) -> List[Dict]:
+        if user_id is None:
+            user_id = self.user_id
+        
+        url = f"{self.base_url}/api/dailydietplans"
+        params = {"userId": user_id}
+        
+        print(f"[API] Запит планів дієти: user_id={user_id}")
+        response = self._make_request('GET', url, params=params)
+        
+        if response:
+            plans = response.json()
+            print(f"[API] Отримано планів: {len(plans) if isinstance(plans, list) else 'не список'}")
+            if isinstance(plans, list) and len(plans) > 0:
+                for i, plan in enumerate(plans):
+                    plan_id = plan.get('dailyDietPlanId')
+                    plan_date = plan.get('dailyPlanCreatedAt', 'N/A')
+                    print(f"[API]   План {i+1}: ID={plan_id}, дата={plan_date}")
+            return plans if isinstance(plans, list) else []
+        return []
+    
+    def get_daily_diet_plan(self, plan_id: int) -> Optional[Dict]:
+        url = f"{self.base_url}/api/dailydietplans/{plan_id}/meals"
+        
+        print(f"[API] Запит плану дієти: plan_id={plan_id}")
+        response = self._make_request('GET', url)
+        
+        if response:
+            data = response.json()
+            print(f"[API] Отримано план дієти: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+            if isinstance(data, dict):
+                meals = data.get('meals', [])
+                print(f"[API] Знайдено прийомів їжі: {len(meals)}")
+                if meals:
+                    print(f"[API] Перший прийом: {list(meals[0].keys()) if isinstance(meals[0], dict) else type(meals[0])}")
+            return data
+        return None
+    
+    def get_recipe(self, recipe_id: int) -> Optional[Dict]:
+        url = f"{self.base_url}/api/recipes/{recipe_id}"
+        
+        response = self._make_request('GET', url)
+        
+        if response:
+            return response.json()
+        return None
+
+
+Клієнт статистики StatisticsApiClient отримує зведені показники активності та стану користувача. 
+
+
+class StatisticsApiClient(BaseApiClient):
+    """Клієнт для роботи зі статистикою"""
+    
+    def get_daily_statistics(self, date: datetime, user_id: Optional[int] = None) -> Optional[Dict]:
+        """Отримує денну статистику для користувача"""
+        if user_id is None:
+            user_id = self.user_id
+        
+        if user_id is None:
+            print(f"[API] Помилка: user_id не визначено!")
+            return None
+        
+        date_str = date.strftime("%Y-%m-%d")
+        url = f"{self.base_url}/api/statistics/daily/{date_str}"
+        params = {"userId": user_id}
+        
+        print(f"[API] Запит статистики за день:")
+        print(f"[API]   URL: {url}")
+        print(f"[API]   Параметри: {params}")
+        print(f"[API]   User ID: {user_id} (тип: {type(user_id)})")
+        
+        response = self._make_request('GET', url, params=params)
+        
+        if response:
+            try:
+                print(f"[API] Статус відповіді: {response.status_code}")
+                data = response.json()
+                print(f"[API] Отримано статистику: {len(str(data))} символів")
+                print(f"[API] Структура даних: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+                return data
+            except Exception as e:
+                print(f"[API] Помилка парсингу JSON: {e}")
+                print(f"[API] Відповідь (перші 500 символів): {response.text[:500]}")
+                return None
+        else:
+            print(f"[API] Не вдалося отримати статистику (response=None)")
+            print(f"[API] Перевірте:")
+            print(f"[API] 1. Чи працює сервер на {self.base_url}")
+            print(f"[API] 2. Чи правильний user_id: {user_id}")
+            print(f"[API] 3. Чи є дані для цього користувача на сервері")
+            return None
+    
+    def get_weekly_statistics(self, start_date: datetime, user_id: Optional[int] = None) -> Optional[Dict]:
+        """Отримує тижневу статистику для користувача"""
+        if user_id is None:
+            user_id = self.user_id
+        
+        date_str = start_date.strftime("%Y-%m-%d")
+        url = f"{self.base_url}/api/statistics/weekly/{date_str}"
+        params = {"userId": user_id}
+        
+        response = self._make_request('GET', url, params=params)
+        
+        if response:
+            return response.json()
+        return None
+
+
+Клієнт профілю UserApiClient забезпечує синхронізацію персональних даних. 
+
+
+
+
+class UserApiClient(BaseApiClient):    
+    def get_user_profile(self, user_id: Optional[int] = None) -> Optional[Dict]:
+        if user_id is None:
+            user_id = self.user_id
+        
+        if user_id is None:
+            print(f"[API] Помилка: user_id не визначено для завантаження профілю")
+            return None
+        
+        url = f"{self.base_url}/api/userprofiles"
+        params = {}
+        
+        print(f"[API] Запит профілю користувача: user_id={user_id}")
+        response = self._make_request('GET', url, params=params)
+        
+        if response:
+            try:
+                profiles = response.json()
+                print(f"[API] Отримано профілів: {len(profiles) if isinstance(profiles, list) else 'не список'}")
+                if isinstance(profiles, list):
+                    for profile in profiles:
+                        profile_user_id = profile.get('userId')
+                        print(f"[API] Перевірка профілю: userId={profile_user_id}, шукаємо {user_id}")
+                        if profile_user_id == user_id:
+                            print(f"[API] Знайдено профіль для користувача {user_id}")
+                            return profile
+                print(f"[API] Профіль для користувача {user_id} не знайдено")
+            except Exception as e:
+                print(f"[API] Помилка парсингу профілів: {e}")
+        return None
+    
+    def get_user_profile_details(self, profile_id: int) -> Optional[Dict]:
+        """Отримує детальну інформацію про профіль користувача"""
+        url = f"{self.base_url}/api/userprofiles/{profile_id}/details"
+        
+        response = self._make_request('GET', url)
+        
+        if response:
+            return response.json()
+        return None
+
+
+Клієнт рекомендацій відповідає за отримання персоналізованих порад на основі зібраної телеметрії.                                  
+
+
+class RecommendationsApiClient(BaseApiClient):
+    def get_recommendations(self, user_id: Optional[int] = None) -> List[Dict]:
+        if user_id is None:
+            user_id = self.user_id
+        
+        url = f"{self.base_url}/api/recommendations/corrections"
+        params = {"userId": user_id}
+        
+        response = self._make_request('GET', url, params=params)
+        
+        if response:
+            return response.json()
+        return []
+
+
+Модуль управління конфігурацією відповідає за завантаження, збереження та перевірку параметрів клієнта. 
+Модуль симуляції датчиків  імітує роботу фізичних сенсорів. Він генерує дані про пульс, активність та сон. Це дозволяє тестувати клієнт та сервер без реального пристрою. Дані передаються у модуль локальної статистики, де виконується попередня агрегація та обчислення показників за часовими інтервалами.
+Файл точки входу відповідає за ініціалізацію всіх модулів, завантаження конфігурації та запуск основного циклу роботи клієнта.
+3.2.2 Взаємодія з серверною частиною
+IoT клієнт взаємодіє з серверною частиною через REST API з використанням HTTP протоколу. Передача телеметрії виконується через POST запити до відповідних серверних кінцевих точок. Клієнт формує запити з урахуванням ідентифікаторів користувача та пристрою.
+Отримання інформації від сервера виконується через GET запити. Клієнт регулярно звертається до сервера для отримання дієтичних планів, статистики, профілю користувача та рекомендацій. Отримані дані зберігаються у памʼяті клієнта та відображаються через графічний інтерфейс.
+Обробка помилок реалізована на рівні базового API клієнта. При виникненні мережевих збоїв або тимчасової недоступності сервера клієнт виконує повторні запити з заданими інтервалами.
+3.3 Створення UML діаграми прецедентів для IoT клієнта:
+UML діаграма прецедентів призначена для відображення основних сценаріїв взаємодії користувача з IoT клієнтом та його взаємодії з серверною частиною системи. Дана діаграма описує функціональність системи з точки зору кінцевого користувача та демонструє, які саме дії може виконувати користувач і яким чином IoT клієнт обмінюється даними з сервером API. Рисунок UML діаграми прецендентів для IoT наведений на рисунку 3.1
+  
+
+Рисунок 3.1 – UML діаграма прецендентів для IoT
+Актори системи
+У діаграмі прецедентів виділено три ключові актори, кожен з яких відповідає за окрему роль у роботі системи.
+Користувач (User) є основним актором, який взаємодіє з IoT клієнтом через графічний інтерфейс. Користувач ініціює запуск клієнта, виконує початкове налаштування параметрів, керує симуляцією датчиків, оновлює дані на головному екрані та переглядає план дієти, статистики та рекомендації. 
+Client API представляє клієнтську логіку взаємодії з сервером. Даний актор відповідає за формування та відправку HTTP-запитів, передачу телеметрії, ініціацію генерації статистики, планів дієти та рекомендацій. Client API виступає посередником між IoT клієнтом і серверною частиною системи.
+Server SensorSimulator моделює серверну систему симуляції датчиків. Його роль полягає у генерації сирих даних з датчиків пульсу, кроків і сну, які використовуються для тестування та імітації роботи реального IoT-пристрою.
+Ініціалізація та налаштування»
+Цей блок описує сценарії, пов’язані з початковим запуском IoT клієнта та його конфігурацією. Ініціатором усіх прецедентів у цьому пакеті є користувач.
+Прецедент “Запустити IoT клієнта” є відправною точкою роботи системи. Після запуску додатку система автоматично завантажує конфігураційні файли та ініціалізує основні компоненти, зокрема менеджер конфігурації, клієнт API, модуль симуляції датчиків, модуль розрахунку статистики та графічний інтерфейс. 
+Прецедент “Налаштування параметрів” забезпечує конфігурування ключових параметрів IoT клієнта, таких як адреса сервера API, ідентифікатори пристрою та користувача, інтервали зчитування даних з датчиків, параметри повторних спроб запитів та таймаути HTTP-з’єднань. У разі потреби користувач може виконати прецедент “Скинути конфігурацію”, який відновлює всі параметри до значень за замовчуванням, збережених у конфігураційному файлі.
+Робота з датчиками
+Цей блок відображає серверну симуляцію роботи фізичних датчиків і пов’язаний з актором Server SensorSimulator. Тут реалізовано прецеденти генерації даних про кроки, пульс і сон. Дані генеруються у вигляді реалістичних значень, що відповідають фізіологічним нормам людини. Згенерована телеметрія передається до системи для подальшої обробки та відправки на сервер.
+Робота з телеметрією
+Цей блок описує процес передачі телеметричних даних від клієнта до серверної частини системи. Client API отримує дані, згенеровані модулем симуляції датчиків, формує відповідні HTTP POST-запити та відправляє їх на серверні ендпоінти. У разі виникнення помилок мережі або API-запитів можливе розширення прецедентів логікою обробки помилок.
+Симуляція датчиків
+Симуляція датчиків описує сценарії керування автоматичною симуляцією датчика кроків з боку користувача.Користувач може запустити симуляцію, після чого система з визначеним інтервалом генерує та відправляє дані про кроки, не блокуючи графічний інтерфейс. У будь-який момент симуляція може бути зупинена користувачем.
+Головний екран
+Головний екран відображає сценарії перегляду актуальних показників IoT клієнта. Користувач робить оновлення даних, після чого система завантажує останню статистику з сервера та відображає поточну кількість кроків і останній виміряний пульс.
+Отримання плану дієти
+Отримання плану дієти описує сценарії отримання та відображення плану дієти для користувача. Після завантаження система отримує актуальний план дієти з сервера, формує денний раціон, структурує прийоми їжі та відображає добову норму калорій і макронутрієнтів.
+Генерація плану дієти
+Генерація плану дієти представляє серверну бізнес-логіку формування індивідуального плану дієти. Client API істворює процес генерації, після чого сервер виконує розрахунок добової норми КБЖУ, формує прийоми їжі та застосовує фільтрацію продуктів відповідно до медичних і дієтичних обмежень користувача.
+Генерація рекомендацій
+Генерація рекомендацій описано сценарії створення персоналізованих рекомендацій. Сервер аналізує активність користувача, його харчові звички та досягнення цілей, після чого формує рекомендації щодо коригування прийомів їжі та добової норми КБЖУ.
+Генерація статистики
+Генерація статистики відповідає за агрегацію телеметричних даних та розрахунок статистичних показників. Залежно від типу запиту сервер може сформувати як денну, так і тижневу статистику з трендами зміни показників.
+3.4 Створення програмної реалізації бізнес логіки та функцій налаштування IoT клієнта:
+Програмна реалізація бізнес-логіки та функцій налаштування IoT клієнта
+У межах виконання лабораторної роботи я реалізувала програмну реалізацію бізнес-логіки IoT клієнта, яка забезпечує повний цикл обробки даних від симуляції роботи фізичних датчиків до передачі телеметрії на серверну частину системи та отримання оброблених результатів у вигляді статистики, рекомендацій і планів дієти. 
+Бізнес-логіка IoT клієнта охоплює три ключові напрями: симуляцію сенсорних даних, комунікацію із сервером через HTTP-протокол та керування конфігурацією клієнта. 
+Реалізація обробки даних з датчиків
+Для моделювання роботи реального IoT пристрою я реалізувала клас SensorSimulator (див Додаток Б, Б 1), який відповідає за генерацію даних, що імітують показники фізичних датчиків фітнес-трекера. Цей компонент не взаємодіє з сервером напряму, а використовується як джерело даних для бізнес-логіки клієнта.
+Логіка симуляції пульсу побудована таким чином, щоб значення відповідали фізіологічно допустимому діапазону для людини у стані спокою. Метод генерації пульсу створює випадкове значення у межах 60–100 ударів на хвилину та повертає його у форматі float, що забезпечує сумісність із серверним API та уніфікований формат телеметрії. 
+Симуляція кроків реалізована з використанням накопичувального лічильника, який зберігає загальну кількість кроків за поточну сесію. При кожному виклику методу генерується випадковий приріст, який додається до загального значення. У реальному GUI клієнта використовується інкрементальний підхід, де кожні кілька секунд генерується невелика кількість кроків, які відправляються на сервер як окремі телеметричні події.
+Найбільш складною частиною симуляції є генерація даних про сон. Я реалізувала створення структурованого запису сну, який містить не лише загальну тривалість, а й розподіл фаз сну, якість, а також часові межі засинання та пробудження. Загальний час сну генерується у межах 6–9 годин, після чого він розподіляється між фазами глибокого та легкого сну відповідно до реальних відсоткових співвідношень. Решта часу автоматично відноситься до періодів пробудження. Час засинання обмежений вечірнім проміжком, а час пробудження розраховується на основі загальної тривалості сну. 
+Реалізація комунікації з серверною частиною через HTTP протокол
+Для взаємодії з серверною частиною системи я реалізувала набір API клієнтів, побудованих на базі спільного класу BaseApiClient (див. Додаток Б, Б 2). Під час ініціалізації базового API клієнта завантажується конфігурація сервера, параметри пристрою та користувача. Також створюється HTTP-сесія, яка дозволяє перевикористовувати TCP-з’єднання між запитами. 
+Ключовим елементом бізнес-логіки мережевої взаємодії є метод _make_request, який виконує фактичний HTTP-запит. У цьому методі реалізовано обробку різних типів помилок. HTTP-помилки серверного рівня не повторюються, оскільки вони зазвичай пов’язані з логічними або валідаційними проблемами.
+
+
+    def _make_request(self, method: str, url: str, payload: Optional[Dict] = None, 
+                     params: Optional[Dict] = None) -> Optional[requests.Response]:
+        last_error = None
+        
+        for attempt in range(1, self.retry_attempts + 1):
+            try:
+                if method.upper() == 'GET':
+                    response = self.session.get(url, params=params, timeout=self.timeout)
+                elif method.upper() == 'POST':
+                    response = self.session.post(url, json=payload, timeout=self.timeout)
+                elif method.upper() == 'PUT':
+                    response = self.session.put(url, json=payload, timeout=self.timeout)
+                elif method.upper() == 'DELETE':
+                    response = self.session.delete(url, timeout=self.timeout)
+                else:
+                    print(f"[API] Невідомий HTTP метод: {method}")
+                    return None
+                
+                response.raise_for_status()
+                return response
+                
+            except requests.exceptions.Timeout:
+                last_error = f"Таймаут запиту (більше {self.timeout} секунд)"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+                    
+            except requests.exceptions.ConnectionError:
+                last_error = "Помилка підключення до сервера"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+                    
+            except requests.exceptions.HTTPError as e:
+                last_error = f"HTTP помилка {e.response.status_code}: {e.response.text}"
+                # HTTP помилки (4xx, 5xx) не повторюємо
+                print(f"[API] {last_error}")
+                return None
+                
+            except Exception as e:
+                last_error = f"Невідома помилка: {str(e)}"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+
+
+На базі цього механізму реалізовано спеціалізовані клієнти для роботи з телеметрією, планами дієти, статистикою, профілем користувача та рекомендаціями. Наприклад, клієнт телеметрії формує структурований JSON-запит, який містить ідентифікатор пристрою, тип телеметрії, часову мітку та значення. Дані про сон обробляються окремо, з автоматичною конвертацією дат у формат ISO.
+Отримання планів дієти реалізовано через RESTful GET-запити, де клієнт спочатку завантажує список доступних планів для користувача, після чого отримує деталізовану інформацію для конкретного плану, включаючи прийоми їжі та рецепти. 
+Реалізація функцій налаштування IoT клієнта
+Для керування конфігурацією системи я реалізувала клас ConfigManager (див. Додаток Б, Б3), який забезпечує централізоване завантаження, збереження та оновлення параметрів IoT клієнта. Конфігурація зберігається у форматі JSON і містить налаштування сервера, пристрою, інтервалів роботи датчиків, параметрів передачі даних і логування.
+Під час завантаження конфігурації реалізовано механізм об’єднання дефолтних і користувацьких параметрів. Це дозволяє зберігати сумісність між версіями програми та автоматично додавати нові параметри без втрати існуючих налаштувань користувача. У разі відсутності файлів конфігурації система використовує вбудовані значення за замовчуванням.
+Крім повного завантаження конфігурації, реалізовано можливість оновлення окремих параметрів та скидання налаштувань до початкового стану. 
+ Локальна обробка та агрегація даних
+Для забезпечення локальної аналітики я реалізувала клас StatisticsCalculator (див. Додаток Б, Б 4), який відповідає за зберігання та обчислення статистичних показників на клієнтській стороні. Алгоритм автоматично визначає тип даних та коректно підраховує загальну кількість кроків за день. Для пульсу реалізовано обчислення мінімального, максимального, середнього значень і медіани, що дозволяє отримати повноцінну картину фізіологічного стану користувача.
+Для тижневої статистики реалізовано алгоритм аналізу трендів, який порівнює середні значення першої та другої половини тижня та обчислює відсоткову зміну. 
+Загальна логіка роботи IoT клієнта
+Узагальнюючи реалізацію, логіка IoT клієнта побудована як послідовний ланцюг дій: користувач ініціює вимірювання або симуляцію через GUI, система генерує або отримує дані з симулятора, локально обробляє їх, відправляє на сервер через API клієнт та відображає результати у зручному вигляді. 
+3.5 Перевірка роботи IoT клієнта:
+У процесі виконання лабораторної роботи я провела повну перевірку роботи IoT клієнта з метою підтвердження коректності реалізованої бізнес логіки, стабільності обміну даними із серверною частиною та правильності роботи механізмів налаштування системи. 
+Першим етапом я перевірив роботу модуля конфігурації ConfigManager. Я запускала клієнт без файлу користувацької конфігурації та перевіряла, що система коректно використовує вбудовані дефолтні значення. Після цього я змінювала параметри сервера, ідентифікатор пристрою та інтервали роботи датчиків через методи оновлення конфігурації та перевіряла, що зміни зберігаються у файлі config.json та застосовуються після повторного запуску клієнта. Додатково я перевірила механізм скидання налаштувань до початкових значень та переконалася, що конфігурація повністю відновлюється без помилок.
+Далі я виконала перевірку симулятора датчиків SensorSimulator. Я багаторазово викликала метод генерації пульсу та контролювала, що всі значення знаходяться у допустимому діапазоні від 60 до 100 ударів на хвилину. Для кроків я перевіряла як накопичувальний режим, так і інкрементальну генерацію значень під час автоматичної симуляції. Я також тестувала генерацію даних про сон та перевіряла логічну узгодженість параметрів, зокрема відповідність фаз сну загальній тривалості, коректність часових меж та форматів дат.
+Окрему увагу я приділила тестуванню клієнтів взаємодії з сервером. Я перевіряла відправку телеметрії пульсу та кроків через HTTP POST запити та підтверджувала їх отримання на сервері за допомогою Swagger та логів серверної частини. Я також тестувала завантаження планів дієти, профілю користувача, рекомендацій та статистики через HTTP GET запити.
+Наступним етапом я перевірив коректність повного обміну даними між клієнтом та сервером. Я контролювала, що дані пульсу надсилаються у вигляді окремих телеметрій з правильними часовими мітками, кроки відправляються з заданим інтервалом симуляції, а записи сну передаються у повному структурованому форматі. З боку отримання я перевіряла, що клієнт коректно обробляє відповіді сервера, обирає найновіший план дієти, відображає всі прийоми їжі та коректно поєднує ці дані з профілем користувача.
+Завершальним етапом стала інтеграційна перевірка з існуючою серверною частиною на платформі .NET. Я підтвердила, що всі реалізовані API endpoints працюють узгоджено з IoT клієнтом, дані синхронізуються без втрат, а фільтрація та сортування інформації за користувачем та датами виконується коректно на обох сторонах.
+Таким чином, проведене тестування підтвердило, що IoT клієнт стабільно працює, коректно обмінюється даними із сервером, підтримує гнучке налаштування та відповідає вимогам завдання щодо реалізації бізнес логіки та функцій налаштування.
+________________
+ВИСНОВКИ
+У ході виконання лабораторної роботи я успішно розробла повнофункціональний IoT клієнт для системи фітнес-трекінгу. У процесі роботи було реалізовано модульну архітектуру з чітким розділенням відповідальності між компонентами. Я спроєктувала та використала UML-діаграми прецедентів і діяльності, які допомогли формалізувати логіку роботи клієнта та взаємодію користувача із системою.
+Була повністю реалізована бізнес-логіка IoT клієнта, яка забезпечує генерацію даних датчиків, їх обробку та коректний обмін із серверною частиною через API. Окрему увагу я приділила управлінню конфігурацією, що дозволяє гнучко змінювати параметри роботи клієнта, зберігати налаштування та повертатися до значень за замовчуванням. Також було розроблено графічний інтерфейс користувача, який працює стабільно та не блокується під час виконання довготривалих операцій.
+________________
+
+
+ДОДАТОК А
+Відеозапис
+Відеозапис доповіді: https://youtu.be/QMcaiG1ajg4
+Хронологічний опис відеозапису:
+00:00 - Вступ
+00:12 - Перелік виконаних завдань до лабораторної
+00:24 - Проєктування архітектури IoT клієнта
+02:08 - Взаємодія з серверною частиною
+02:37 - Створення UML діаграми прецедентів для IoT  клієнта
+03:30 - Створення програмної реалізації бізнес логіки та функцій налаштування IoT клієнта
+05:09 - Перевірка роботи IoT клієнта
+05:53 - Налаштування \ конфігураційні файли
+08:20 - Демонстрація IoT клієнта
+11:20 - Дякую за увагу
+________________
+
+
+ДОДАТОК Б
+Програмний код
+Б1 клас-симулятор сервеса генерації даних SensorSimulator
+
+
+class SensorSimulator:
+
+
+    def __init__(self):
+
+
+        self.steps_count = 0  
+        
+        self.heart_rate_base = 70  
+    
+    def read_heart_rate(self) -> float:
+
+
+        heart_rate = random.randint(60, 100)
+        return float(heart_rate)
+    
+    def read_steps(self) -> int:
+
+
+        new_steps = random.randint(0, 50)
+        self.steps_count += new_steps
+        return self.steps_count
+    
+    def reset_steps(self):
+
+
+        self.steps_count = 0
+        print("Лічильник кроків скинуто")
+    
+    def generate_sleep_data(self, date: datetime) -> Dict:
+
+
+        total_sleep = random.randint(360, 540)
+        
+        deep_sleep_percent = random.uniform(0.15, 0.25)
+        deep_sleep = int(total_sleep * deep_sleep_percent)
+        
+        light_sleep_percent = random.uniform(0.50, 0.70)
+        light_sleep = int(total_sleep * light_sleep_percent)
+        
+        awake = total_sleep - deep_sleep - light_sleep
+        
+        quality = random.uniform(70.0, 95.0)
+        
+        start_time = date.replace(hour=22, minute=random.randint(0, 30), second=0, microsecond=0)
+        
+        end_time = start_time + timedelta(minutes=total_sleep)
+        
+        return {
+            "date": date.date().isoformat(),
+            "totalSleepMinutes": total_sleep,
+            "deepSleepMinutes": deep_sleep,
+            "lightSleepMinutes": light_sleep,
+            "awakeMinutes": awake,
+            "sleepQuality": round(quality, 1),
+            "startTime": start_time.isoformat(),
+            "endTime": end_time.isoformat()
+        }
+    
+    def generate_telemetry_batch(self, count: int = 10) -> List[Dict]:
+
+
+        batch = []
+        now = datetime.now()
+        
+        for i in range(count):
+            telemetry_type = random.choice([0, 1])  
+            
+            if telemetry_type == 0:  
+                value = self.read_heart_rate()
+            else:  
+                value = self.read_steps()
+            
+            timestamp = now - timedelta(minutes=random.randint(0, 30), seconds=random.randint(0, 59))
+            
+            item = {
+                "deviceId": 1,  
+                "timestamp": timestamp.isoformat(),
+                "telemetryType": telemetry_type,
+                "value": float(value),
+                "metadata": None
+            }
+            
+            batch.append(item)
+        
+        return batch
+
+
+
+
+if __name__ == "__main__":
+    from datetime import datetime
+
+
+    simulator = SensorSimulator()
+    
+    print("Тестування симулятора датчиків\n")
+    
+    heart_rate = simulator.read_heart_rate()
+    print(f" Пульс: {heart_rate} bpm")
+    
+    steps1 = simulator.read_steps()
+    print(f" Кроки (перше зчитування): {steps1}")
+    steps2 = simulator.read_steps()
+    print(f"Кроки (друге зчитування): {steps2}")
+    
+    sleep_data = simulator.generate_sleep_data(datetime.now())
+    print(f"\n Дані про сон:")
+    print(f"Загальний сон: {sleep_data['totalSleepMinutes']} хвилин")
+    print(f"Глибокий сон: {sleep_data['deepSleepMinutes']} хвилин")
+    print(f"Легкий сон: {sleep_data['lightSleepMinutes']} хвилин")
+    print(f"Якість: {sleep_data['sleepQuality']}%")
+
+
+Б2 клас BaseApiClient
+
+
+class BaseApiClient:
+    """Базовий клас для API клієнтів зі спільною логікою HTTP запитів"""
+    
+    def __init__(self, config_manager: ConfigManager):
+        self.config_manager = config_manager
+        config = config_manager.load_config()
+        
+        self.base_url = config['server']['base_url'].rstrip('/')
+        self.timeout = config['server']['timeout']
+        self.retry_attempts = config['server']['retry_attempts']
+        self.retry_delay = config['server']['retry_delay']
+        
+        self.device_id = config['device']['device_id']
+        self.user_id = config['device']['user_id']
+        
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
+    
+    def _make_request(self, method: str, url: str, payload: Optional[Dict] = None, 
+                     params: Optional[Dict] = None) -> Optional[requests.Response]:
+        last_error = None
+        
+        for attempt in range(1, self.retry_attempts + 1):
+            try:
+                if method.upper() == 'GET':
+                    response = self.session.get(url, params=params, timeout=self.timeout)
+                elif method.upper() == 'POST':
+                    response = self.session.post(url, json=payload, timeout=self.timeout)
+                elif method.upper() == 'PUT':
+                    response = self.session.put(url, json=payload, timeout=self.timeout)
+                elif method.upper() == 'DELETE':
+                    response = self.session.delete(url, timeout=self.timeout)
+                else:
+                    print(f"[API] Невідомий HTTP метод: {method}")
+                    return None
+                
+                response.raise_for_status()
+                return response
+                
+            except requests.exceptions.Timeout:
+                last_error = f"Таймаут запиту (більше {self.timeout} секунд)"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+                    
+            except requests.exceptions.ConnectionError:
+                last_error = "Помилка підключення до сервера"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+                    
+            except requests.exceptions.HTTPError as e:
+                last_error = f"HTTP помилка {e.response.status_code}: {e.response.text}"
+                print(f"[API] {last_error}")
+                return None
+                
+            except Exception as e:
+                last_error = f"Невідома помилка: {str(e)}"
+                if attempt < self.retry_attempts:
+                    print(f"[API] Спроба {attempt}/{self.retry_attempts}: {last_error}. Повтор через {self.retry_delay} сек...")
+                    time.sleep(self.retry_delay)
+        
+        print(f"[API] Не вдалося виконати запит після {self.retry_attempts} спроб. Остання помилка: {last_error}")
+        return None
+
+
+Б 3  Клас ConfigManager
+
+
+class ConfigManager:
+    
+    def __init__(self, config_path: str = None):
+
+
+        if config_path is None:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            config_path = os.path.join(base_dir, "config", "config.json")
+            default_config_path = os.path.join(base_dir, "config", "config.default.json")
+        else:
+            default_config_path = "config/config.default.json"
+        
+        self.config_path = config_path
+        self.default_config_path = default_config_path
+    
+        self.default_config = {
+            "server": {
+                "base_url": "http://localhost:5006",  
+                "timeout": 10,               
+                "retry_attempts": 3,        
+                "retry_delay": 5                 
+            },
+            "device": {
+                "device_id": 1,             
+                "user_id": 1,                     
+                "device_type": "FitnessTracker", 
+                "connection_type": "WiFi"    
+            },
+            "sensors": {
+                "heart_rate_interval": 5,      
+                "steps_interval": 5,               
+                "blood_pressure_interval": 600     )
+            },
+            "data": {
+                "batch_size": 5,  
+                "send_interval": 15              
+            },
+            "logging": {
+                "level": "INFO",                  
+                "file": "logs/iot_client.log"        
+            }
+        }
+    
+    def load_config(self) -> Dict:
+        if os.path.exists(self.default_config_path):
+            try:
+                with open(self.default_config_path, 'r', encoding='utf-8') as f:
+                    default_from_file = json.load(f)
+                    self.default_config = self._merge_dicts(self.default_config, default_from_file)
+            except Exception as e:
+                print(f"Помилка завантаження дефолтної конфігурації: {e}")
+        
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    merged_config = self._merge_dicts(self.default_config, config)
+                    print(f" Конфігурацію завантажено з {self.config_path}")
+                    return merged_config
+            except json.JSONDecodeError as e:
+                print(f" Помилка парсингу JSON у {self.config_path}: {e}")
+                print(" Використовуються дефолтні значення")
+                return self.default_config
+            except Exception as e:
+                print(f" Помилка завантаження конфігурації: {e}")
+                return self.default_config
+        else:
+            print(f"Файл {self.config_path} не знайдено. Використовуються дефолтні значення.")
+            return self.default_config.copy()
+    
+    def save_config(self, config: Dict):
+        config_dir = os.path.dirname(self.config_path)
+        if config_dir and not os.path.exists(config_dir):
+            os.makedirs(config_dir, exist_ok=True)
+        
+        try:
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            print(f"Конфігурацію збережено у {self.config_path}")
+        except Exception as e:
+            print(f" Помилка збереження конфігурації: {e}")
+    
+    def reset_to_defaults(self):
+        default_config = self.load_config()
+        self.save_config(default_config)
+        print(" Конфігурацію скинуто до дефолтних значень")
+    
+    def update_setting(self, section: str, key: str, value):
+        config = self.load_config()
+        
+        if section in config:
+            if key in config[section]:
+                config[section][key] = value
+                self.save_config(config)
+                print(f"Оновлено {section}.{key} = {value}")
+            else:
+                print(f"Ключ '{key}' не знайдено в секції '{section}'")
+        else:
+            print(f"Секція '{section}' не знайдена в конфігурації")
+    
+    def get_setting(self, section: str, key: str, default=None):
+        config = self.load_config()
+        return config.get(section, {}).get(key, default)
+    
+    def _merge_dicts(self, default: Dict, user: Dict) -> Dict:
+        result = default.copy()
+        
+        for key, value in user.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._merge_dicts(result[key], value)
+            else:
+                result[key] = value
+        
+        return result
+
+
+
+
+if __name__ == "__main__":
+    config_manager = ConfigManager()
+    
+    config = config_manager.load_config()
+    
+    print(" Поточна конфігурація:")
+    print(json.dumps(config, indent=2, ensure_ascii=False))
+    
+
+
+
+
+Б 4 клас StatisticsCalculator
+
+
+class StatisticsCalculator:
+    
+    def __init__(self):
+        self.heart_rate_samples = [] 
+        self.steps_samples = []
+        self.sleep_records = []
+        self.daily_steps_accumulator = {}  # {date_str: last_cumulative_value}
+        
+    def add_heart_rate(self, value: float, timestamp: datetime):
+        self.heart_rate_samples.append((timestamp, value))
+    
+    def add_steps(self, value: int, timestamp: datetime):
+        date_str = timestamp.date().isoformat()
+        
+        if date_str in self.daily_steps_accumulator:
+            last_value = self.daily_steps_accumulator[date_str]
+            if value >= last_value:
+                self.daily_steps_accumulator[date_str] = value
+            else:
+                self.daily_steps_accumulator[date_str] = last_value + value
+        else:
+            self.daily_steps_accumulator[date_str] = value
+        
+        self.steps_samples.append((timestamp, self.daily_steps_accumulator[date_str]))
+    
+    def add_sleep_record(self, sleep_data: Dict):
+        self.sleep_records.append(sleep_data)
+    
+    def get_daily_heart_rate_stats(self, date: datetime) -> Optional[Dict]:
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        day_samples = [
+            value for ts, value in self.heart_rate_samples
+            if date_start <= ts < date_end
+        ]
+        
+        if not day_samples:
+            return None
+        
+        return {
+            "date": date.date().isoformat(),
+            "count": len(day_samples),
+            "min": float(min(day_samples)),
+            "max": float(max(day_samples)),
+            "avg": float(statistics.mean(day_samples)),
+            "median": float(statistics.median(day_samples))
+        }
+    
+    def get_daily_steps_total(self, date: datetime) -> Optional[Dict]:
+        date_str = date.date().isoformat()
+        
+        if date_str in self.daily_steps_accumulator:
+            total_steps = self.daily_steps_accumulator[date_str]
+        else:
+            date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_end = date_start + timedelta(days=1)
+            
+            day_samples = [
+                value for ts, value in self.steps_samples
+                if date_start <= ts < date_end
+            ]
+            
+            if not day_samples:
+                return None
+            
+            total_steps = max(day_samples) if day_samples else 0
+        
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        day_samples_count = len([
+            ts for ts, value in self.steps_samples
+            if date_start <= ts < date_end
+        ])
+        
+        return {
+            "date": date_str,
+            "totalSteps": int(total_steps),
+            "samplesCount": day_samples_count
+        }
+    
+    def get_weekly_heart_rate_trend(self, start_date: datetime) -> Optional[Dict]:
+        week_data = []
+        
+        for day_offset in range(7):
+            current_date = start_date + timedelta(days=day_offset)
+            day_stats = self.get_daily_heart_rate_stats(current_date)
+            if day_stats:
+                week_data.append(day_stats["avg"])
+        
+        if len(week_data) < 2:
+            return None
+        
+        first_half = week_data[:3] if len(week_data) >= 3 else week_data[:len(week_data)//2]
+        second_half = week_data[-3:] if len(week_data) >= 3 else week_data[len(week_data)//2:]
+        
+        if not first_half or not second_half:
+            return None
+        
+        first_avg = statistics.mean(first_half)
+        second_avg = statistics.mean(second_half)
+        
+        if first_avg == 0:
+            return None
+        
+        trend_percent = ((second_avg - first_avg) / first_avg) * 100
+        
+        return {
+            "startDate": start_date.date().isoformat(),
+            "firstHalfAvg": round(float(first_avg), 2),
+            "secondHalfAvg": round(float(second_avg), 2),
+            "trendPercent": round(trend_percent, 2),
+            "daysWithData": len(week_data)
+        }
+    
+    def get_weekly_steps_trend(self, start_date: datetime) -> Optional[Dict]:
+        week_data = []
+        
+        for day_offset in range(7):
+            current_date = start_date + timedelta(days=day_offset)
+            day_stats = self.get_daily_steps_total(current_date)
+            if day_stats:
+                week_data.append(day_stats["totalSteps"])
+        
+        if len(week_data) < 2:
+            return None
+        
+        first_half = week_data[:3] if len(week_data) >= 3 else week_data[:len(week_data)//2]
+        second_half = week_data[-3:] if len(week_data) >= 3 else week_data[len(week_data)//2:]
+        
+        if not first_half or not second_half:
+            return None
+        
+        first_avg = statistics.mean(first_half)
+        second_avg = statistics.mean(second_half)
+        
+        if first_avg == 0:
+            return None
+        
+        trend_percent = ((second_avg - first_avg) / first_avg) * 100
+        
+        return {
+            "startDate": start_date.date().isoformat(),
+            "firstHalfAvg": round(float(first_avg), 2),
+            "secondHalfAvg": round(float(second_avg), 2),
+            "trendPercent": round(trend_percent, 2),
+            "totalStepsWeek": sum(week_data),
+            "daysWithData": len(week_data)
+        }
+    
+    def get_sleep_statistics(self, days: int = 7) -> Optional[Dict]:
+        if not self.sleep_records:
+            return None
+        
+        recent_records = sorted(
+            self.sleep_records,
+            key=lambda x: x.get('date', ''),
+            reverse=True
+        )[:days]
+        
+        if not recent_records:
+            return None
+        
+        total_sleep_list = [r.get('totalSleepMinutes', 0) for r in recent_records]
+        deep_sleep_list = [r.get('deepSleepMinutes', 0) for r in recent_records]
+        quality_list = [r.get('sleepQuality', 0) for r in recent_records if r.get('sleepQuality')]
+        
+        return {
+            "periodDays": days,
+            "recordsCount": len(recent_records),
+            "avgTotalSleep": round(statistics.mean(total_sleep_list), 1),
+            "avgDeepSleep": round(statistics.mean(deep_sleep_list), 1),
+            "avgQuality": round(statistics.mean(quality_list), 1) if quality_list else None,
+            "minTotalSleep": min(total_sleep_list),
+            "maxTotalSleep": max(total_sleep_list)
+        }
+    
+    def get_activity_score(self, date: datetime) -> Optional[float]:
+        hr_stats = self.get_daily_heart_rate_stats(date)
+        steps_stats = self.get_daily_steps_total(date)
+        
+        if not hr_stats or not steps_stats:
+            return None
+        
+        hr_score = (hr_stats["avg"] - 60) / 40 * 50
+        steps_score = min(steps_stats["totalSteps"] / 10000 * 50, 50)
+        
+        total_score = hr_score + steps_score
+        return round(total_score, 1)
+    
+    def clear_old_data(self, days_to_keep: int = 30):
+        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+        
+        self.heart_rate_samples = [
+            (ts, val) for ts, val in self.heart_rate_samples
+            if ts >= cutoff_date
+        ]
+        
+        self.steps_samples = [
+            (ts, val) for ts, val in self.steps_samples
+            if ts >= cutoff_date
+        ]
+        
+        self.sleep_records = [
+            rec for rec in self.sleep_records
+            if datetime.fromisoformat(rec.get('date', '2000-01-01')).date() >= cutoff_date.date()
+        ]
+
+
+
+
+if __name__ == "__main__":
+    from datetime import datetime, timedelta
+    import random
+    
+    calc = StatisticsCalculator()
+    
+    now = datetime.now()
+    
+    print("Тестування StatisticsCalculator\n")
+    
+    for i in range(20):
+        hr = random.randint(60, 100)
+        calc.add_heart_rate(hr, now - timedelta(minutes=30-i*2))
+    
+    for i in range(10):
+        steps = random.randint(0, 50) * (i + 1)
+        calc.add_steps(steps, now - timedelta(minutes=30-i*3))
+    
+    sleep_data = {
+        "date": now.date().isoformat(),
+        "totalSleepMinutes": 420,
+        "deepSleepMinutes": 84,
+        "lightSleepMinutes": 294,
+        "awakeMinutes": 42,
+        "sleepQuality": 85.0
+    }
+    calc.add_sleep_record(sleep_data)
+    
+    print("1. Статистика пульсу за сьогодні:")
+    hr_stats = calc.get_daily_heart_rate_stats(now)
+    if hr_stats:
+        print(f"   Середній: {hr_stats['avg']:.1f} bpm")
+        print(f"   Мін/Макс: {hr_stats['min']:.0f} / {hr_stats['max']:.0f} bpm")
+        print(f"   Медіана: {hr_stats['median']:.1f} bpm")
+        print(f"   Зразків: {hr_stats['count']}")
+    
+    print("\n2. Кроки за сьогодні:")
+    steps_stats = calc.get_daily_steps_total(now)
+    if steps_stats:
+        print(f"   Всього кроків: {steps_stats['totalSteps']}")
+        print(f"   Зразків: {steps_stats['samplesCount']}")
+    
+    print("\n3. Статистика сну (останні 7 днів):")
+    sleep_stats = calc.get_sleep_statistics(7)
+    if sleep_stats:
+        print(f"   Середній сон: {sleep_stats['avgTotalSleep']} хв")
+        print(f"   Середній глибокий сон: {sleep_stats['avgDeepSleep']} хв")
+        print(f"   Середня якість: {sleep_stats['avgQuality']}%")
+    
+    print("\n4. Оцінка активності за сьогодні:")
+    activity = calc.get_activity_score(now)
+    if activity:
+        print(f"   Бал активності: {activity}/100")
+    
+    print("\n5. Тренд пульсу за тиждень:")
+    week_start = now - timedelta(days=7)
+    hr_trend = calc.get_weekly_heart_rate_trend(week_start)
+    if hr_trend:
+        print(f"   Перша половина: {hr_trend['firstHalfAvg']:.1f} bpm")
+        print(f"   Друга половина: {hr_trend['secondHalfAvg']:.1f} bpm")
+        print(f"   Зміна: {hr_trend['trendPercent']:+.1f}%")

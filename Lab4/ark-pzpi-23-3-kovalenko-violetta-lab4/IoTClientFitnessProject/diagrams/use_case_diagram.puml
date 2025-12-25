@@ -1,0 +1,132 @@
+@startuml IoT_Client_Use_Case_Diagram
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor white
+    BorderColor black
+}
+skinparam arrow {
+    Thickness 1.5
+}
+
+left to right direction
+
+title UML Діаграма прецедентів для IoT клієнта
+
+' Актори
+actor "Користувач" as User
+actor "Сервер API" as Server
+
+' Пакет: Ініціалізація та налаштування
+package "Ініціалізація та налаштування" {
+    usecase "Запустити IoT клієнт" as UC_Start
+    usecase "Налаштувати параметри" as UC_Configure
+    usecase "Скинути конфігурацію" as UC_ResetConfig
+}
+
+' Пакет: Симуляція датчиків
+package "Симуляція датчиків" {
+    usecase "Запустити симуляцію кроків" as UC_StartSimulation
+    usecase "Зупинити симуляцію" as UC_StopSimulation
+}
+
+' Пакет: Робота з датчиками
+package "Робота з датчиками" {
+    usecase "Виміряти пульс" as UC_MeasureHR
+    usecase "Відправити дані про пульс" as UC_SendHR
+    usecase "Згенерувати дані про кроки" as UC_GenerateSteps
+    usecase "Відправити дані про кроки" as UC_SendSteps
+    usecase "Згенерувати дані про сон" as UC_GenerateSleep
+    usecase "Відправити дані про сон" as UC_SendSleep
+}
+
+' Пакет: Головний екран
+package "Головний екран" {
+    usecase "Оновити дані" as UC_RefreshHomeData
+    usecase "Переглянути поточні показники" as UC_ViewCurrentData
+}
+
+' Пакет: План дієти
+package "План дієти" {
+    usecase "Завантажити план дієти" as UC_LoadDietPlan
+    usecase "Переглянути профіль користувача" as UC_ViewUserProfile
+    usecase "Переглянути прийоми їжі" as UC_ViewMeals
+    usecase "Переглянути рецепти" as UC_ViewRecipes
+}
+
+' Пакет: Рекомендації
+package "Рекомендації" {
+    usecase "Завантажити рекомендації" as UC_LoadRecommendations
+    usecase "Переглянути рекомендації" as UC_ViewRecommendations
+}
+
+' Пакет: Статистика
+package "Статистика" {
+    usecase "Завантажити денну статистику" as UC_LoadDailyStats
+    usecase "Завантажити тижневу статистику" as UC_LoadWeeklyStats
+    usecase "Переглянути статистику" as UC_ViewStats
+}
+
+' Пакет: Обробка помилок
+package "Обробка помилок" {
+    usecase "Обробити помилку" as UC_HandleError
+    usecase "Повторити запит" as UC_RetryRequest
+    usecase "Відобразити помилку" as UC_ShowError
+}
+
+' Зв'язки користувача з основними прецедентами
+User -right-> UC_Start
+User -right-> UC_ResetConfig
+User -right-> UC_StartSimulation
+User -right-> UC_StopSimulation
+User -right-> UC_MeasureHR
+User -right-> UC_GenerateSteps
+User -right-> UC_GenerateSleep
+User -right-> UC_RefreshHomeData
+User -right-> UC_LoadDietPlan
+User -right-> UC_LoadRecommendations
+User -right-> UC_LoadDailyStats
+User -right-> UC_LoadWeeklyStats
+
+' Зв'язки з сервером (відправка даних)
+UC_SendHR -up-> Server
+UC_SendSteps -up-> Server
+UC_SendSleep -up-> Server
+
+' Зв'язки з сервером (отримання даних)
+Server -down-> UC_LoadDietPlan
+Server -down-> UC_LoadRecommendations
+Server -down-> UC_LoadDailyStats
+Server -down-> UC_LoadWeeklyStats
+
+' Включення (include) - обов'язкові зв'язки
+UC_Start ..> UC_Configure : <<include>>
+UC_MeasureHR ..> UC_SendHR : <<include>>
+UC_GenerateSteps ..> UC_SendSteps : <<include>>
+UC_GenerateSleep ..> UC_SendSleep : <<include>>
+UC_RefreshHomeData ..> UC_ViewCurrentData : <<include>>
+UC_LoadDietPlan ..> UC_ViewUserProfile : <<include>>
+UC_LoadDietPlan ..> UC_ViewMeals : <<include>>
+UC_LoadDietPlan ..> UC_ViewRecipes : <<include>>
+UC_LoadRecommendations ..> UC_ViewRecommendations : <<include>>
+UC_LoadDailyStats ..> UC_ViewStats : <<include>>
+UC_LoadWeeklyStats ..> UC_ViewStats : <<include>>
+
+' Симуляція використовує генерацію та відправку кроків
+UC_StartSimulation ..> UC_GenerateSteps : <<include>>
+UC_StartSimulation ..> UC_SendSteps : <<include>>
+
+' Розширення (extend) - опціональні зв'язки (помилки)
+UC_SendHR ..> UC_HandleError : <<extend>>
+UC_SendSteps ..> UC_HandleError : <<extend>>
+UC_SendSleep ..> UC_HandleError : <<extend>>
+UC_LoadDietPlan ..> UC_HandleError : <<extend>>
+UC_LoadRecommendations ..> UC_HandleError : <<extend>>
+UC_LoadDailyStats ..> UC_HandleError : <<extend>>
+UC_LoadWeeklyStats ..> UC_HandleError : <<extend>>
+UC_HandleError ..> UC_RetryRequest : <<extend>>
+UC_HandleError ..> UC_ShowError : <<extend>>
+
+@enduml
+
