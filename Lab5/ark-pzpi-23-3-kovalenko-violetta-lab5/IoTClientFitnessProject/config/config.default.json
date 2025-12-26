@@ -1,0 +1,28 @@
+{
+  "server": {
+    "base_url": "http://localhost:5006",
+    "timeout": 10,
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "device": {
+    "device_id": 1,
+    "user_id": 1,
+    "device_type": "FitnessTracker",
+    "connection_type": "WiFi"
+  },
+  "sensors": {
+    "heart_rate_interval": 5,
+    "steps_interval": 5,
+    "blood_pressure_interval": 600
+  },
+  "data": {
+    "batch_size": 5,
+    "send_interval": 15
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/iot_client.log"
+  }
+}
+

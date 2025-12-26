@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Tracker - Apple Watch Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .time-display {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e0e0e0;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            min-height: 400px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .card {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status.running {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .status.stopped {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .log-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .text-area {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Fitness Tracker - Apple Watch Simulator</h1>
+            <div class="time-display" id="timeDisplay">--:--:--<br>--.--.----</div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('home')">Головна</button>
+            <button class="tab" onclick="showTab('diet')">Дієта</button>
+            <button class="tab" onclick="showTab('recommendations')">Рекомендації</button>
+            <button class="tab" onclick="showTab('statistics')">Статистика</button>
+            <button class="tab" onclick="showTab('sensors')">Датчики</button>
+        </div>
+        
+        <div id="home" class="tab-content active">
+            <div class="card">
+                <h3>Пульс</h3>
+                <div class="value" id="heartRate">-- bpm</div>
+            </div>
+            <div class="card">
+                <h3>Кроки</h3>
+                <div class="value" id="steps">--</div>
+            </div>
+            <div class="card">
+                <h3>Бал активності</h3>
+                <div class="value" id="activity">--/100</div>
+            </div>
+            <button class="btn" onclick="updateHomeData()">Оновити дані</button>
+        </div>
+        
+        <div id="diet" class="tab-content">
+            <button class="btn" onclick="loadDietPlan()">Завантажити план</button>
+            <button class="btn" onclick="clearDiet()">Очистити</button>
+            <textarea class="text-area" id="dietText" readonly></textarea>
+        </div>
+        
+        <div id="recommendations" class="tab-content">
+            <button class="btn" onclick="loadRecommendations()">Завантажити рекомендації</button>
+            <button class="btn" onclick="clearRecommendations()">Очистити</button>
+            <textarea class="text-area" id="recommendationsText" readonly></textarea>
+        </div>
+        
+        <div id="statistics" class="tab-content">
+            <button class="btn" onclick="loadStatistics('daily')">Статистика за день</button>
+            <button class="btn" onclick="loadStatistics('weekly')">Статистика за тиждень</button>
+            <button class="btn" onclick="clearStatistics()">Очистити</button>
+            <textarea class="text-area" id="statisticsText" readonly></textarea>
+        </div>
+        
+        <div id="sensors" class="tab-content">
+            <div class="card">
+                <h3>Статус симуляції</h3>
+                <span id="simulationStatus">Зупинено</span>
+                <span class="status stopped" id="statusBadge">Зупинено</span>
+            </div>
+            
+            <button class="btn btn-success" id="btnStart" onclick="startSimulation()">Запустити симуляцію кроків</button>
+            <button class="btn btn-danger" id="btnStop" onclick="stopSimulation()" disabled>Зупинити симуляцію</button>
+            
+            <div class="card">
+                <h3>Вимірювання пульсу</h3>
+                <button class="btn" onclick="measureHeartRate()">Виміряти пульс</button>
+                <span id="lastHeartRate">Останній пульс: не виміряно</span>
+            </div>
+            
+            <div class="card">
+                <h3>Дані про сон</h3>
+                <button class="btn" onclick="sendSleepData()">Відправити дані про сон (сьогодні)</button>
+                <span id="lastSleep">Останні дані про сон: не відправлено</span>
+            </div>
+            
+            <div class="card">
+                <h3>Лог відправки даних</h3>
+                <div class="log-area" id="logArea"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '';
+        
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+        
+        function updateTime() {
+            fetch(API_BASE + '/api/time')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('timeDisplay').innerHTML = 
+                        data.time + '<br>' + data.date;
+                });
+        }
+        
+        function updateHomeData() {
+            fetch(API_BASE + '/api/home-data')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('heartRate').textContent = data.heartRate || '-- bpm';
+                    document.getElementById('steps').textContent = data.steps || '--';
+                    document.getElementById('activity').textContent = data.activity || '--/100';
+                })
+                .catch(e => console.error(e));
+        }
+        
+        function loadDietPlan() {
+            const textArea = document.getElementById('dietText');
+            textArea.value = 'Завантаження плану дієти...\n';
+            
+            fetch(API_BASE + '/api/diet-plan', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        let errorText = 'Помилка: ' + data.error;
+                        if (data.profile) {
+                            errorText += '\n\n' + formatDietPlan({profile: data.profile, plan: {meals: []}});
+                        }
+                        textArea.value = errorText;
+                        return;
+                    }
+                    textArea.value = formatDietPlan(data);
+                })
+                .catch(e => {
+                    textArea.value = 'Помилка: ' + e.message;
+                });
+        }
+        
+        function formatDietPlan(data) {
+            let text = '';
+            const profile = data.profile;
+            const plan = data.plan || data;
+            
+            if (profile) {
+                text += 'Профіль користувача\n';
+                text += '-'.repeat(50) + '\n';
+                if (profile.firstName || profile.lastName) {
+                    text += `Ім'я: ${profile.firstName || ''} ${profile.lastName || ''}\n`;
+                }
+                if (profile.sex) {
+                    const sexMap = {'Male': 'Чоловік', 'Female': 'Жінка', 'Other': 'Інше'};
+                    text += `Стать: ${sexMap[profile.sex] || profile.sex}\n`;
+                }
+                if (profile.heightCm) text += `Зріст: ${profile.heightCm} см\n`;
+                if (profile.currentWeightKg) text += `Вага: ${profile.currentWeightKg} кг\n`;
+                if (profile.activityLevel) {
+                    const activityMap = {
+                        'Sedentary': 'Малорухливий',
+                        'Light': 'Легка активність',
+                        'Moderate': 'Помірна активність',
+                        'Active': 'Активний',
+                        'VeryActive': 'Дуже активний'
+                    };
+                    text += `Рівень активності: ${activityMap[profile.activityLevel] || profile.activityLevel}\n`;
+                }
+                if (profile.birthDate) {
+                    try {
+                        const birthDate = new Date(profile.birthDate);
+                        const age = Math.floor((new Date() - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+                        text += `Вік: ${age} років\n`;
+                    } catch(e) {}
+                }
+                if (profile.medicalConditions) {
+                    text += `Медичні обмеження: ${profile.medicalConditions}\n`;
+                }
+                text += '='.repeat(50) + '\n\n';
+            }
+            
+            const date = plan.dailyPlanCreatedAt ? new Date(plan.dailyPlanCreatedAt).toISOString().split('T')[0] : 'Невідома дата';
+            text += `План дієти на ${date}\n`;
+            text += '='.repeat(50) + '\n\n';
+            
+            const meals = plan.meals || plan.mealDetails || plan.Meals || [];
+            
+            let totalCalories = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
+            meals.forEach(meal => {
+                totalCalories += meal.mealTargetCalories || meal.MealTargetCalories || 0;
+                totalProtein += meal.mealTargetProtein || meal.MealTargetProtein || 0;
+                totalFat += meal.mealTargetFat || meal.MealTargetFat || 0;
+                totalCarbs += meal.mealTargetCarbs || meal.MealTargetCarbs || 0;
+            });
+            
+            text += `Загальні показники:\n`;
+            text += `  Калорії: ${totalCalories.toFixed(0)} ккал\n`;
+            text += `  Білки: ${totalProtein.toFixed(1)} г\n`;
+            text += `  Жири: ${totalFat.toFixed(1)} г\n`;
+            text += `  Вуглеводи: ${totalCarbs.toFixed(1)} г\n\n`;
+            
+            if (meals.length > 0) {
+                text += `Прийоми їжі (всього: ${meals.length}):\n`;
+                text += '-'.repeat(50) + '\n';
+                
+                meals.forEach((meal, idx) => {
+                    const mealTime = meal.mealTime || meal.MealTime;
+                    let mealTimeName = ['Сніданок', 'Обід', 'Вечеря', 'Перекус'][mealTime - 1] || `Прийом ${mealTime}`;
+                    
+                    const calories = meal.mealTargetCalories || meal.MealTargetCalories || 0;
+                    const protein = meal.mealTargetProtein || meal.MealTargetProtein || 0;
+                    const fat = meal.mealTargetFat || meal.MealTargetFat || 0;
+                    const carbs = meal.mealTargetCarbs || meal.MealTargetCarbs || 0;
+                    
+                    text += `\n${idx + 1}. ${mealTimeName}\n`;
+                    text += `   Калорії: ${calories.toFixed(0)} ккал\n`;
+                    text += `   Білки: ${protein.toFixed(1)} г | Жири: ${fat.toFixed(1)} г | Вуглеводи: ${carbs.toFixed(1)} г\n`;
+                    
+                    const recipes = meal.mealRecipes || meal.MealRecipes || [];
+                    if (recipes.length > 0) {
+                        text += `   Страви:\n`;
+                        recipes.forEach(recipe => {
+                            const recipeId = recipe.recipeId || recipe.RecipeId;
+                            if (recipeId) {
+                                text += `     - Рецепт ${recipeId}\n`;
+                            }
+                        });
+                    } else {
+                        text += `   Страви: не вказано\n`;
+                    }
+                });
+            } else {
+                text += 'Прийоми їжі не знайдено.\n';
+            }
+            
+            return text;
+        }
+        
+        function clearDiet() {
+            document.getElementById('dietText').value = '';
+        }
+        
+        function loadRecommendations() {
+            const textArea = document.getElementById('recommendationsText');
+            textArea.value = 'Завантаження рекомендацій...\n';
+            
+            fetch(API_BASE + '/api/recommendations')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        textArea.value = 'Помилка: ' + data.error;
+                        return;
+                    }
+                    textArea.value = formatRecommendations(data);
+                })
+                .catch(e => {
+                    textArea.value = 'Помилка: ' + e.message;
+                });
+        }
+        
+        function formatRecommendations(recs) {
+            let text = `Рекомендації\n${'='.repeat(50)}\n\n`;
+            recs.forEach((rec, idx) => {
+                text += `${idx + 1}. ${rec.isRead ? 'Прочитано' : 'Нове'}\n`;
+                text += `   Тип: ${rec.recommendationType}\n`;
+                text += `   Дата: ${rec.createdAt}\n`;
+                text += `   ${rec.message}\n${'-'.repeat(50)}\n\n`;
+            });
+            return text;
+        }
+        
+        function clearRecommendations() {
+            document.getElementById('recommendationsText').value = '';
+        }
+        
+        function loadStatistics(period) {
+            const textArea = document.getElementById('statisticsText');
+            textArea.value = 'Завантаження статистики...\n';
+            
+            fetch(API_BASE + `/api/statistics/${period}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        textArea.value = 'Помилка: ' + data.error;
+                        return;
+                    }
+                    textArea.value = formatStatistics(data, period);
+                })
+                .catch(e => {
+                    textArea.value = 'Помилка: ' + e.message;
+                });
+        }
+        
+        function formatStatistics(stats, period) {
+            let text = period === 'daily' ? 'Статистика за день\n' : 'Статистика за тиждень\n';
+            text += '='.repeat(50) + '\n\n';
+            
+            if (period === 'daily') {
+                const date = stats.date || new Date().toISOString().split('T')[0];
+                text += `Дата: ${date}\n\n`;
+                
+                text += 'Телеметрія:\n';
+                const steps = stats.steps || 0;
+                text += `  Кроки: ${parseInt(steps).toLocaleString()}\n`;
+                
+                const hrAvg = stats.heartRateAvg;
+                const hrMin = stats.heartRateMin;
+                const hrMax = stats.heartRateMax;
+                const hrCount = stats.heartRateSamples || 0;
+                
+                if (hrAvg !== null && hrAvg !== undefined) {
+                    text += `  Середній пульс: ${parseFloat(hrAvg).toFixed(1)} bpm\n`;
+                    if (hrMin !== null && hrMax !== null) {
+                        text += `  Мін/Макс: ${parseInt(hrMin)} / ${parseInt(hrMax)} bpm\n`;
+                    }
+                    if (hrCount > 0) {
+                        text += `  Зразків пульсу: ${hrCount}\n`;
+                    }
+                } else {
+                    text += `  Пульс: немає даних\n`;
+                }
+                
+                text += '\nСон:\n';
+                const totalSleep = stats.totalSleepMinutes || 0;
+                const deepSleep = stats.deepSleepMinutes || 0;
+                const lightSleep = stats.lightSleepMinutes || 0;
+                const awake = stats.awakeMinutes || 0;
+                const quality = stats.sleepQualityAvg;
+                
+                if (totalSleep > 0) {
+                    text += `  Загальний сон: ${totalSleep} хв\n`;
+                    if (deepSleep > 0) text += `  Глибокий сон: ${deepSleep} хв\n`;
+                    if (lightSleep > 0) text += `  Легкий сон: ${lightSleep} хв\n`;
+                    if (awake > 0) text += `  Без сну: ${awake} хв\n`;
+                    if (quality !== null && quality !== undefined) {
+                        text += `  Якість: ${parseFloat(quality).toFixed(1)}%\n`;
+                    }
+                } else {
+                    text += `  Дані про сон відсутні\n`;
+                }
+                
+                text += '\nТренування:\n';
+                const trainingCount = stats.trainingCount || 0;
+                if (trainingCount > 0) {
+                    text += `  Кількість: ${trainingCount}\n`;
+                    const duration = stats.trainingDurationMinutes || 0;
+                    if (duration > 0) text += `  Тривалість: ${duration} хв\n`;
+                    const intensity = stats.trainingIntensityAvg;
+                    if (intensity !== null && intensity !== undefined) {
+                        text += `  Середня інтенсивність: ${parseFloat(intensity).toFixed(1)}\n`;
+                    }
+                    const calories = stats.trainingCalories || 0;
+                    if (calories > 0) text += `  Калорії: ${parseFloat(calories).toFixed(0)} ккал\n`;
+                } else {
+                    text += `  Тренувань не було\n`;
+                }
+            } else {
+                text += `Період: ${stats.startDate || ''} - ${stats.endDate || ''}\n\n`;
+                
+                text += 'Загальні показники:\n';
+                text += `  Всього кроків: ${(stats.totalSteps || 0).toLocaleString()}\n`;
+                
+                const hrAvg = stats.heartRateAvg;
+                if (hrAvg !== null && hrAvg !== undefined) {
+                    text += `  Середній пульс: ${parseFloat(hrAvg).toFixed(1)} bpm\n`;
+                }
+                
+                text += `  Загальний сон: ${stats.totalSleepMinutes || 0} хв\n`;
+                text += `  Тренувань: ${stats.trainingCount || 0}\n`;
+                text += `  Калорій з тренувань: ${parseFloat(stats.trainingCalories || 0).toFixed(0)} ккал\n`;
+                
+                text += '\nТренди:\n';
+                const stepsTrend = stats.stepsTrendPercent;
+                if (stepsTrend !== null && stepsTrend !== undefined) {
+                    text += `  Кроки: ${stepsTrend >= 0 ? '+' : ''}${parseFloat(stepsTrend).toFixed(1)}%\n`;
+                }
+                const hrTrend = stats.heartRateAvgTrendPercent;
+                if (hrTrend !== null && hrTrend !== undefined) {
+                    text += `  Пульс: ${hrTrend >= 0 ? '+' : ''}${parseFloat(hrTrend).toFixed(1)}%\n`;
+                }
+            }
+            
+            return text;
+        }
+        
+        function clearStatistics() {
+            document.getElementById('statisticsText').value = '';
+        }
+        
+        let lastLogIndex = 0;
+        
+        function startSimulation() {
+            lastLogIndex = 0;
+            document.getElementById('logArea').innerHTML = '';
+            fetch(API_BASE + '/api/simulation/start', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    updateSimulationStatus();
+                });
+        }
+        
+        function stopSimulation() {
+            fetch(API_BASE + '/api/simulation/stop', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    updateSimulationStatus();
+                });
+        }
+        
+        function updateSimulationStatus() {
+            fetch(API_BASE + '/api/simulation/status')
+                .then(r => r.json())
+                .then(data => {
+                    const running = data.running;
+                    document.getElementById('simulationStatus').textContent = running ? 'Працює' : 'Зупинено';
+                    document.getElementById('statusBadge').textContent = running ? 'Працює' : 'Зупинено';
+                    document.getElementById('statusBadge').className = 'status ' + (running ? 'running' : 'stopped');
+                    document.getElementById('btnStart').disabled = running;
+                    document.getElementById('btnStop').disabled = !running;
+                });
+        }
+        
+        function measureHeartRate() {
+            addLog('Вимірювання пульсу...');
+            fetch(API_BASE + '/api/heart-rate', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('lastHeartRate').textContent = 
+                            `Останній пульс: ${data.heartRate} bpm (${data.time})`;
+                        addLog(`Пульс: ${data.heartRate} bpm - відправлено`);
+                    } else {
+                        addLog('Помилка відправки пульсу');
+                    }
+                });
+        }
+        
+        function sendSleepData() {
+            addLog('Генерація даних про сон...');
+            fetch(API_BASE + '/api/sleep', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const sleep = data.sleepData;
+                        document.getElementById('lastSleep').textContent = 
+                            `Останні дані: ${sleep.totalSleepMinutes} хв, якість ${sleep.sleepQuality.toFixed(1)}%`;
+                        addLog(`Дані про сон відправлено: ${sleep.totalSleepMinutes} хв`);
+                    } else {
+                        addLog('Помилка відправки даних про сон');
+                    }
+                });
+        }
+        
+        function addLog(message) {
+            const logArea = document.getElementById('logArea');
+            if (message.startsWith('[')) {
+                logArea.innerHTML += `<div class="log-entry">${message}</div>`;
+            } else {
+                const time = new Date().toLocaleTimeString();
+                logArea.innerHTML += `<div class="log-entry">[${time}] ${message}</div>`;
+            }
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function updateSimulationLogs() {
+            if (document.getElementById('sensors').classList.contains('active')) {
+                fetch(API_BASE + '/api/simulation/logs')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.logs && data.logs.length > lastLogIndex) {
+                            const newLogs = data.logs.slice(lastLogIndex);
+                            newLogs.forEach(log => {
+                                addLog(log);
+                            });
+                            lastLogIndex = data.logs.length;
+                        }
+                    })
+                    .catch(e => console.error(e));
+            }
+        }
+        
+        setInterval(updateTime, 1000);
+        setInterval(updateSimulationStatus, 2000);
+        setInterval(updateSimulationLogs, 1000);
+        updateTime();
+        updateSimulationStatus();
+    </script>
+</body>
+</html>
+
